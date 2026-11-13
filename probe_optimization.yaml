@@ -70,3 +70,15 @@ optimizer:
   seed: 1234
   polish: true
 output_dir: probe_optimization_results
+optimize_orientation: true
+orientation_bounds_deg:
+- -45.0
+- 45.0
+robust:
+  field_scales:
+  - 0.8
+  - 1.0
+  - 1.2
+  noise_scales:
+  - 1.0
+  - 2.0

@@ -16,7 +16,7 @@ try:
 except ImportError:  
     threadpool_limits = None
 
-from plasma import StixTensor, PlasmaParams, density_profile, theoretical_kz
+from plasma import StixTensor, PlasmaParams, density_profile, configured_theoretical_kz
 from boundary import PML
 from background import Background
 from double_layer import DoubleLayerDiagnostics
@@ -479,7 +479,9 @@ class HeliconSolver:
             b_reference = float(self.params.B0)
         self.dispersion_reference_n_e = n_reference
         self.dispersion_reference_B0_T = b_reference
-        k_ref = abs(theoretical_kz(self.omega, n_reference, b_reference, m_mode=m))
+        k_ref = abs(configured_theoretical_kz(
+            self.omega, n_reference, b_reference, p, self.cfg.get("solver", {}), m_mode=m
+        ))
         k_min = max(1.0, 0.02 * k_ref)
         k_max_multiplier = float(self.cfg.get("solver", {}).get("kz_r_max_multiplier", 20.0))
         if not np.isfinite(k_max_multiplier) or k_max_multiplier <= 1.0:
@@ -585,7 +587,8 @@ class HeliconSolver:
 
 
 def select_dispersion_mode(
-    modes, k_reference, previous_kz=None, frequency_ratio=1.0, previous_mode=None
+    modes, k_reference, previous_kz=None, frequency_ratio=1.0, previous_mode=None,
+    require_resolved=False,
 ):
     """Select a radial eigenmode and continue a branch across frequency.
 
@@ -598,6 +601,8 @@ def select_dispersion_mode(
     if not modes:
         raise ValueError("modes must be a non-empty list")
     resolved = [mode for mode in modes if mode.get("radial_grid_resolved", False)]
+    if require_resolved and not resolved:
+        raise RuntimeError("No radial eigenmode passed the configured grid-resolution criterion")
     candidates = resolved if resolved else modes
     target = complex(k_reference)
     if previous_kz is not None:

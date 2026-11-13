@@ -9,7 +9,7 @@ import numpy as np
 import yaml
 
 from main import load_config
-from plasma import theoretical_kz
+from plasma import configured_theoretical_kz
 from preflight import validate_project_config
 from solver import HeliconSolver, select_dispersion_mode
 
@@ -18,6 +18,7 @@ FIELDS = (
     "Nr", "Nz", "dispersion_Nr", "pml_r", "pml_z", "frequency_MHz", "m_mode",
     "kz_real_rad_m", "kz_imag_rad_m", "attenuation_m_inv", "kz_change_percent",
     "relative_linear_residual", "field_fit_accepted", "field_fit_kz_rad_m", "elapsed_s",
+    "radial_grid_oscillation", "radial_grid_resolved", "convergence_accepted",
 )
 
 
@@ -68,13 +69,20 @@ def main(config_path: str = "config.yaml", *, meshes: list[str],
             field_k, _ = solver.compute_wave_structure()
             fit_ok = bool(solver.kz_fit_reliable and np.isfinite(field_k))
         modes = solver.compute_dispersion_modes()
-        theory = abs(theoretical_kz(solver.omega, solver.params.n_e, solver.params.B0))
+        theory = abs(configured_theoretical_kz(
+            solver.omega, solver.params.n_e, solver.params.B0,
+            solver.cfg["plasma"], solver.cfg.get("solver", {})
+        ))
         if previous is None:
             selected = select_dispersion_mode(modes, theory)
         else:
             selected = select_dispersion_mode(modes, theory, previous_kz=previous["kz"],
                                               frequency_ratio=1.0, previous_mode=previous)
         delta = None if previous is None else 100 * abs(selected["kz"].real - previous["kz"].real) / max(abs(previous["kz"].real), 1e-30)
+        convergence_accepted = bool(
+            selected.get("radial_grid_resolved", False)
+            and (delta is None or delta <= float(cfg.get("solver", {}).get("convergence_kz_change_percent", 5.0)))
+        )
         row = {
             "Nr": nr, "Nz": nz, "dispersion_Nr": cfg["grid"]["dispersion_Nr"],
             "pml_r": cfg["grid"]["pml_r"], "pml_z": cfg["grid"]["pml_z"],
@@ -87,6 +95,9 @@ def main(config_path: str = "config.yaml", *, meshes: list[str],
             "field_fit_accepted": fit_ok,
             "field_fit_kz_rad_m": float(field_k) if fit_ok else None,
             "elapsed_s": round(perf_counter() - started, 3),
+            "radial_grid_oscillation": float(selected.get("radial_grid_oscillation", np.nan)),
+            "radial_grid_resolved": bool(selected.get("radial_grid_resolved", False)),
+            "convergence_accepted": convergence_accepted,
         }
         rows.append(row)
         with target.open("w", newline="", encoding="utf-8-sig") as stream:

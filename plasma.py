@@ -100,3 +100,47 @@ def theoretical_kz(omega, n_e, B0, m_mode=1, k_perp=0.0):
         return complex(np.sqrt(factor), 0.0)
     kz2 = 0.5 * (-k_perp**2 + np.sqrt(k_perp**4 + 4 * factor**2))
     return complex(np.sqrt(max(kz2, 0.0)), 0.0)
+
+
+def parallel_kz_stix(omega, n_e, B0, ion_mass=M_I, ion_charge=1,
+                     nu_en=0.0, nu_in=0.0, branch="R"):
+    """Return the complex parallel cold-plasma wavenumber from the full Stix tensor.
+
+    The result includes the ion contribution and collisions. ``branch`` selects
+    the parallel R or L circularly polarized branch. The sign is chosen for a
+    forward wave with nonnegative real part and nonpositive attenuation under
+    exp(+i*omega*t - i*kz*z).
+    """
+    branch = str(branch).upper()
+    if branch not in ("R", "L"):
+        raise ValueError("branch must be R or L")
+    params = PlasmaParams(float(B0), float(n_e), 0.0, float(nu_en),
+                          float(ion_mass), int(ion_charge), float(nu_in))
+    tensor = StixTensor(params, float(omega))
+    epsilon = tensor.R if branch == "R" else tensor.L
+    if not np.isfinite(epsilon.real) or not np.isfinite(epsilon.imag):
+        raise ValueError("Parallel Stix branch is non-finite")
+    root = (float(omega) / C_LIGHT) * np.sqrt(epsilon + 0j)
+    candidates = (root, -root)
+    valid = [value for value in candidates if value.real >= 0 and value.imag <= 0]
+    if valid:
+        return complex(min(valid, key=lambda value: abs(value.imag)))
+    return complex(max(candidates, key=lambda value: value.real))
+
+
+def configured_theoretical_kz(omega, n_e, B0, plasma_config=None, solver_config=None, m_mode=1):
+    plasma_config = plasma_config or {}
+    solver_config = solver_config or {}
+    model = str(solver_config.get("theory_model", "whistler")).lower()
+    if model in ("full_stix", "stix", "parallel_stix"):
+        return parallel_kz_stix(
+            omega,
+            n_e,
+            B0,
+            ion_mass=float(plasma_config.get("ion_mass", M_I)),
+            ion_charge=int(plasma_config.get("ion_charge", 1)),
+            nu_en=float(plasma_config.get("nu_en", 0.0)),
+            nu_in=float(plasma_config.get("nu_in", 0.0)),
+            branch=str(solver_config.get("parallel_branch", "R")),
+        )
+    return theoretical_kz(omega, n_e, B0, m_mode=m_mode)

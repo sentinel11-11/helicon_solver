@@ -45,6 +45,16 @@ python probe_optimization.py --config probe_optimization.yaml
 
 Результаты появятся в `probe_optimization_results`.
 
+В `probe_optimization.yaml` можно задавать диапазоны неопределённости поля и шума. Оптимизатор выбирает конфигурацию по худшему сценарию, а также перебирает ориентацию трёхосевого зонда.
+
+Проверка сеточной сходимости радиальной моды:
+
+```powershell
+python convergence.py --config config.yaml --grids 50x400 75x600 100x800 --frequency 9.8 --mode 1 --eigen-only --output convergence_m1.csv
+```
+
+Итоговую моду следует использовать только при `radial_grid_resolved=true` и `convergence_accepted=true`.
+
 Для подгонки магнитной модели по измеренному CSV-файлу используйте колонки `r_m`, `z_m`, `B_r_T`, `B_z_T` и `sigma_B_T`:
 
 ```powershell

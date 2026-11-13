@@ -114,6 +114,10 @@ solver:
   kz_fit_min_cycles: 1.0
   kz_fit_min_purity: 0.85
   max_radial_grid_oscillation: 0.22
+  strict_radial_validation: false
+  convergence_kz_change_percent: 5.0
+  theory_model: full_stix
+  parallel_branch: R
 antenna:
   geometry_status: provisional
   type: helical

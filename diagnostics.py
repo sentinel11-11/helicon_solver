@@ -206,14 +206,17 @@ class Diagnostics:
             if np.any(active):
                 n_e = float(np.average(profile[active], weights=profile[active]))
                 B0 = float(np.average(field[active], weights=profile[active]))
-        from plasma import theoretical_kz
-        k_vals = [theoretical_kz(2 * np.pi * f, n_e, B0) for f in freqs]
+        from plasma import configured_theoretical_kz
+        theory_model = str(s.cfg.get("solver", {}).get("theory_model", "whistler")).lower()
+        theory_label = "parallel full-Stix branch" if theory_model in ("full_stix", "stix", "parallel_stix") else "quasi-parallel whistler estimate"
+        k_vals = [configured_theoretical_kz(2 * np.pi * f, n_e, B0,
+                                            s.cfg["plasma"], s.cfg.get("solver", {})) for f in freqs]
         fig, ax = plt.subplots(figsize=(8, 5))
         ax.plot(np.asarray(freqs) / 1e6, np.asarray([abs(k) for k in k_vals]) / 100,
-                "o-", lw=2, label="quasi-parallel whistler estimate")
+                "o-", lw=2, label=theory_label)
         ax.set_xlabel("f, MHz")
         ax.set_ylabel(r"$k_z$, cm$^{-1}$")
-        ax.set_title("Asymptotic whistler dispersion (not full H/TG eigenmodes)")
+        ax.set_title(f"{theory_label} (not full H/TG eigenmodes)")
         ax.grid(True, alpha=0.3)
         ax.legend()
         self._save(fig, "dispersion_map.png")
@@ -239,12 +242,14 @@ class Diagnostics:
 
     def compare_with_theory(self, k_eigenmode=None):
         s = self.solver
-        from plasma import theoretical_kz
+        from plasma import configured_theoretical_kz
         from solver import select_dispersion_mode
         n_reference = float(getattr(s, "dispersion_reference_n_e", s.params.n_e))
         b_reference = float(getattr(s, "dispersion_reference_B0_T", s.params.B0))
-        k_theory = theoretical_kz(s.omega, n_reference, b_reference,
-                                  m_mode=s.cfg["wave"].get("m_mode", 0))
+        k_theory = configured_theoretical_kz(
+            s.omega, n_reference, b_reference, s.cfg["plasma"], s.cfg.get("solver", {}),
+            m_mode=s.cfg["wave"].get("m_mode", 0)
+        )
         k_sim, _ = s.compute_wave_structure()
         quality = float(getattr(s, "kz_fit_quality", 0.0))
         if k_eigenmode is None:
@@ -255,7 +260,9 @@ class Diagnostics:
         k_eigenmode = k_eigenmode["kz"] if isinstance(k_eigenmode, dict) else complex(k_eigenmode)
 
         fig, ax = plt.subplots(figsize=(8, 5))
-        labels = ["Whistler\nasymptote", "Radial eigenmode\n(mesh-screened)" if eigen_resolved else "Radial eigenmode\n(UNVERIFIED)"]
+        theory_model = str(s.cfg.get("solver", {}).get("theory_model", "whistler")).lower()
+        theory_label = "Full Stix\nparallel branch" if theory_model in ("full_stix", "stix", "parallel_stix") else "Whistler\nasymptote"
+        labels = [theory_label, "Radial eigenmode\n(mesh-screened)" if eigen_resolved else "Radial eigenmode\n(UNVERIFIED)"]
         values = [abs(k_theory) / 100, abs(k_eigenmode) / 100]
         colors = ["steelblue", "seagreen" if eigen_resolved else "gray"]
         if np.isfinite(k_sim):
@@ -273,7 +280,7 @@ class Diagnostics:
             abs(abs(k_sim) - abs(k_theory)) / max(abs(k_theory), 1e-30) * 100
             if np.isfinite(k_sim) else float("nan")
         )
-        print(f"[whistler asymptote] k_z = {abs(k_theory)/100:.5f} 1/cm")
+        print(f"[theory reference] k_z = {abs(k_theory)/100:.5f} 1/cm")
         print(f"[radial eigenmode]   k_z = {k_eigenmode.real/100:.5f} 1/cm, "
               f"Im(k_z) = {k_eigenmode.imag/100:.5f} 1/cm")
         if not eigen_resolved:
@@ -289,6 +296,6 @@ class Diagnostics:
         f_lh = np.sqrt(s.stix.omega_ci * s.stix.omega_ce) / (2 * np.pi)
         if abs(s.omega / (2 * np.pi) - f_lh) / f_lh < 0.2:
             print(f"[physics warning] f={s.omega/(2*np.pi)/1e6:.3f} MHz is near f_LH≈{f_lh/1e6:.3f} MHz; "
-                  "the electron-only sqrt(f) asymptote is not quantitatively reliable here.")
+                  "the parallel reference branch is not a full radial H/TG dispersion solution here.")
         print("[NOTE] The radial eigenmode solves this code's discretized cold-plasma model with radial PML; it is not a full Chen/Arnush H-TG benchmark until boundary/model convergence is checked.")
         return k_theory, k_sim, err_field

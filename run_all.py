@@ -18,7 +18,7 @@ import yaml
 
 from diagnostics import Diagnostics
 from main import load_config, save_fields
-from plasma import theoretical_kz
+from plasma import configured_theoretical_kz
 from preflight import print_preflight, validate_project_config
 from solver import HeliconSolver, select_dispersion_mode
 
@@ -155,7 +155,9 @@ def _plot_summary(rows: list[dict[str, Any]], modes: list[int], path: Path, dpi:
 def _result_row(solver: HeliconSolver, selected: dict[str, Any], f: float, m: int, elapsed: float) -> dict[str, Any]:
     n_ref = float(getattr(solver, "dispersion_reference_n_e", solver.params.n_e))
     b_ref = float(getattr(solver, "dispersion_reference_B0_T", solver.params.B0))
-    k_theory = float(abs(theoretical_kz(solver.omega, n_ref, b_ref, m_mode=m)))
+    k_theory = float(abs(configured_theoretical_kz(
+        solver.omega, n_ref, b_ref, solver.cfg["plasma"], solver.cfg.get("solver", {}), m_mode=m
+    )))
     field_k, _ = solver.compute_wave_structure()
     valid = bool(getattr(solver, "kz_fit_reliable", False) and np.isfinite(field_k))
     return {
@@ -279,20 +281,24 @@ def main(
                 save_fields(solver, case_dir)
             solver.compute_wave_structure()
             candidate_modes = solver.compute_dispersion_modes()
-            k_theory = theoretical_kz(
+            k_theory = configured_theoretical_kz(
                 solver.omega,
                 solver.dispersion_reference_n_e,
                 solver.dispersion_reference_B0_T,
+                solver.cfg["plasma"],
+                solver.cfg.get("solver", {}),
                 m_mode=mode,
             )
+            require_resolved = bool(base.get("solver", {}).get("strict_radial_validation", False))
             prior = previous[mode]
             if prior is None:
-                selected = select_dispersion_mode(candidate_modes, abs(k_theory))
+                selected = select_dispersion_mode(candidate_modes, abs(k_theory), require_resolved=require_resolved)
             else:
                 old_mode, previous_frequency = prior
                 selected = select_dispersion_mode(
                     candidate_modes, abs(k_theory), previous_kz=old_mode["kz"],
                     frequency_ratio=frequency / previous_frequency, previous_mode=old_mode,
+                    require_resolved=require_resolved,
                 )
             _save_mode(mode_path, selected)
             if not selected.get("radial_grid_resolved", False):
