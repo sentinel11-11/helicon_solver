@@ -651,7 +651,6 @@ class HeliconSolver:
         axial_margin = int(self.cfg["grid"].get("pml_z", 0)) + int(extra_axial_cells)
         mask = np.ones((self.Nr, self.Nz), dtype=bool)
         if radial_margin:
-            mask[:radial_margin, :] = False
             mask[max(self.Nr - radial_margin, 0):, :] = False
         if axial_margin:
             mask[:, :axial_margin] = False
