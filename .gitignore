@@ -5,5 +5,7 @@ __pycache__/
 *.log
 results/
 results_*/
+config_local.yaml
+config_cuda_local.yaml
 convergence_scan.csv
 *.tmp
