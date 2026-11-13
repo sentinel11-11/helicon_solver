@@ -7,14 +7,16 @@ FDFD-расчёт геликонных волн и радиальных собс
 ```powershell
 git pull
 python -m pip install -r requirements.txt
-python run_all.py --config config.yaml --frequencies 5 7.5 9.8 12 15
+copy config.yaml config_local.yaml
+python run_all.py --config config_local.yaml --frequencies 5 7.5 9.8 12 15
 ```
 
 Для CUDA установите CuPy и используйте `config_cuda.yaml`:
 
 ```powershell
 python -m pip install cupy-cuda12x
-python run_all.py --config config_cuda.yaml --frequencies 5 7.5 9.8 12 15
+copy config_cuda.yaml config_cuda_local.yaml
+python run_all.py --config config_cuda_local.yaml --frequencies 5 7.5 9.8 12 15
 ```
 
 Поле магнитной системы рассчитывается с учётом восьми магнитов длиной 0,608 м и квадратным сечением 0,018 м. Две секции соленоида задаются в `config.yaml`.
