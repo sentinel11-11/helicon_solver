@@ -1,0 +1,16 @@
+{
+  "model": "cold_plasma_2p5d_local_gyrotropic_maxwell",
+  "frequency_Hz": 9800000.0,
+  "m": 1,
+  "field_phase_convention": "exp(i*m*phi - i*kz*z + i*omega*t)",
+  "relative_residual": 1.5663565875912932e-12,
+  "grid": [
+    24,
+    80
+  ],
+  "physical_absorbed_power_W": 1.7721260096317126e-08,
+  "magnetic_divergence_grid_indicator": 1.7839667461138762e-15,
+  "double_layer_status": "disabled",
+  "double_layer_self_consistent": false,
+  "elapsed_s": 2.944
+}

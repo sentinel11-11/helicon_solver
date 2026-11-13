@@ -1,0 +1,87 @@
+plasma:
+  radius: 0.025
+  length: 0.5
+  B0: 0.03
+  n_e_peak: 1.0e18
+  T_e: 3.0
+  nu_en: 1.0e7
+  ion_mass: 6.64e-27
+  ion_charge: 1
+  profile: parabolic
+  nu_in: 0.0
+  density_axial:
+    model: uniform
+  magnetic_field:
+    model: uniform
+wave:
+  frequency: 9.8e6
+  frequencies:
+  - 9800000.0
+  m_modes:
+  - 0
+  - 1
+  - 2
+  m_mode: 1
+grid:
+  Nr: 24
+  radial_extent: 0.0375
+  dispersion_Nr: 40
+  dispersion_pml_r: 5
+  Nz: 80
+  pml_r: 3
+  pml_z: 4
+  pml_sigma_max: 1.0
+solver:
+  tol: 1.0e-06
+  max_iter: 2000
+  use_gpu: false
+  method: direct
+  direct_max_unknowns: 10000
+  ilu_drop_tol: 0.001
+  ilu_fill_factor: 8.0
+  artificial_loss: 0.0
+  kz_r_min_fraction: 0.45
+  kz_r_max_fraction: 0.9
+  dispersion_z_m: 0.25
+antenna:
+  type: helical
+  z_position: 0.15
+  length: 0.1
+  radius_factor: 0.8
+  radial_width_m: 0.0005
+  turns: 1.0
+  current_density: 1.0
+  radius_m: 0.02
+probe:
+  n_turns: 10
+  area: 1.0e-05
+  resistance: 50.0
+  capacitance: 5.0e-12
+  shield_length: 0.02
+scan:
+  z_positions:
+  - 0.25
+  - 0.3
+  - 0.35
+  - 0.4
+  - 0.45
+  r_positions:
+  - 0.005
+  - 0.01
+  - 0.015
+  - 0.02
+output:
+  results_dir: results_test
+  save_hdf5: false
+  dpi: 160
+boundary:
+  pec_pml_termination: true
+double_layer:
+  enabled: false
+  mode: prescribed
+  center_m: 0.35
+  width_m: 0.0005
+  potential_drop_V: 15.0
+  upstream_potential_V: 20.0
+  upstream_ion_velocity_m_s: 2000.0
+  profile_points: 401
