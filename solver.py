@@ -330,16 +330,44 @@ class HeliconSolver:
                     J0 * arm_factor * feed_fraction * radial[:, None]
                     * feed_axial[None, :] * feed_phase[None, :]
                 )
+        if bool(ant.get("enforce_current_continuity", False)):
+            dJz_dz = np.gradient(Jz, self.z, axis=1, edge_order=2)
+            rhs = -1j * m * Jphi - self.r[:, None] * dJz_dz
+            Jr[1:, :] = np.cumsum(
+                0.5 * (rhs[:-1, :] + rhs[1:, :]) * np.diff(self.r)[:, None], axis=0
+            ) / self.r[1:, None]
+            pml_r = int(self.cfg["grid"]["pml_r"])
+            Jr[max(self.Nr - pml_r, 0):, :] = 0.0
         J = np.concatenate([Jr.ravel(), Jphi.ravel(), Jz.ravel()]).astype(complex)
         if not np.any(np.abs(J) > 0):
             raise ValueError("Antenna source is zero on the current grid; check z_position/length")
         return J
+
+    def source_divergence_quality(self, source):
+        """Return a normalized divergence diagnostic for the equivalent RF source."""
+        total = self.Nr * self.Nz
+        jr = source[:total].reshape(self.Nr, self.Nz)
+        jphi = source[total:2 * total].reshape(self.Nr, self.Nz)
+        jz = source[2 * total:].reshape(self.Nr, self.Nz)
+        m = int(self.cfg["wave"].get("m_mode", 0))
+        divergence = (
+            np.gradient(self.r[:, None] * jr, self.r, axis=0, edge_order=2) / self.r[:, None]
+            + 1j * m * jphi / self.r[:, None]
+            + np.gradient(jz, self.z, axis=1, edge_order=2)
+        )
+        mask = self.physical_domain_mask()
+        numerator = np.linalg.norm(divergence[mask]) * max(self.dr, self.dz)
+        denominator = np.linalg.norm(source) * max(self.dr, self.dz, 1e-30)
+        return float(numerator / max(denominator, 1e-30))
 
     def solve(self):
         if not self._operator_ready:
             self._setup_operator()
         self._wave_structure_cached = False
         J = self._build_source()
+        self.source_current = J
+        self.source_divergence = self.source_divergence_quality(J)
+        print(f"[source] normalized div(J)={self.source_divergence:.3e}")
         b = -1j * self.omega * mu_0 * J
         if self.pec_rows.size:
             b[self.pec_rows] = 0.0
@@ -618,8 +646,33 @@ class HeliconSolver:
         axial = 0.5 / mu_0 * np.real(self.Er * np.conj(B_phi) - self.Ephi * np.conj(B_r))
         return radial, axial
 
-    def compute_poynting_z(self):
-        return self.compute_poynting()[1]
+    def physical_domain_mask(self, extra_radial_cells=0, extra_axial_cells=0):
+        radial_margin = int(self.cfg["grid"].get("pml_r", 0)) + int(extra_radial_cells)
+        axial_margin = int(self.cfg["grid"].get("pml_z", 0)) + int(extra_axial_cells)
+        mask = np.ones((self.Nr, self.Nz), dtype=bool)
+        if radial_margin:
+            mask[:radial_margin, :] = False
+            mask[max(self.Nr - radial_margin, 0):, :] = False
+        if axial_margin:
+            mask[:, :axial_margin] = False
+            mask[:, max(self.Nz - axial_margin, 0):] = False
+        return mask
+
+    def compute_poynting_z(self, physical_only=False):
+        axial = self.compute_poynting()[1]
+        if physical_only:
+            axial = np.where(self.physical_domain_mask(), axial, np.nan)
+        return axial
+
+    def physical_poynting_power(self, z_m, r_max_m=None):
+        """Integrate the axial Poynting flux over a physical cross-section."""
+        z_index = int(np.argmin(np.abs(self.z - float(z_m))))
+        mask = self.physical_domain_mask()[:, z_index]
+        if r_max_m is not None:
+            mask &= self.r <= float(r_max_m)
+        values = self.compute_poynting_z(physical_only=False)[:, z_index]
+        values = np.where(mask, values, 0.0)
+        return float(2.0 * np.pi * np.trapz(values * self.r, self.r))
 
     def magnetic_divergence_quality(self):
         br, bp, bz = self.compute_magnetic_field()

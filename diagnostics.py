@@ -171,6 +171,7 @@ class Diagnostics:
     def plot_absorbed_power(self):
         s = self.solver
         P = s.compute_absorbed_power()
+        P = np.where(s.physical_domain_mask(), P, np.nan)
         fig, ax = plt.subplots(figsize=(10, 6))
         im = ax.pcolormesh(s.z * 100, s.r * 100, P, shading="auto", cmap="hot")
         ax.set_xlabel("z, cm")
@@ -181,14 +182,14 @@ class Diagnostics:
 
     def plot_poynting(self):
         s = self.solver
-        Sz = s.compute_poynting_z()
+        Sz = s.compute_poynting_z(physical_only=True)
         fig, ax = plt.subplots(figsize=(10, 6))
-        lim = float(np.max(np.abs(Sz)))
+        lim = float(np.nanmax(np.abs(Sz)))
         im = ax.pcolormesh(s.z * 100, s.r * 100, Sz, shading="auto", cmap="RdBu_r",
                            vmin=-lim if lim else None, vmax=lim if lim else None)
         ax.set_xlabel("z, cm")
         ax.set_ylabel("r, cm")
-        ax.set_title("Time-averaged axial Poynting flux")
+        ax.set_title("Physical-domain axial Poynting flux")
         fig.colorbar(im, ax=ax, label=r"W/m$^2$")
         self._save(fig, "poynting.png")
 

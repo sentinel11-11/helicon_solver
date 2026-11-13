@@ -92,7 +92,7 @@ grid:
   dispersion_Nr: 200
   dispersion_pml_r: 15
   pml_r: 10
-  pml_z: 15
+  pml_z: 30
   pml_sigma_max: 5.0
 boundary:
   pec_pml_termination: true
@@ -133,6 +133,7 @@ antenna:
   arm_phase_offset_rad: 3.141592653589793
   arm_normalization: 0.5
   arm_imbalance: 0.05
+  enforce_current_continuity: true
   feed_leads:
     enabled: true
     length_m: 0.020915
