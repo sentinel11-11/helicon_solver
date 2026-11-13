@@ -28,3 +28,27 @@ python magnetic_3d.py --config config.yaml
 ```
 
 Параметры с отметкой `provisional` требуют замены измеренными координатами, токами, полярностями и размерами установки.
+
+## Итерационный подбор зонда
+
+Сначала запустите расчёт с сохранением `fields.npz`:
+
+```powershell
+python run_all.py --config config.yaml
+```
+
+После этого выполните подбор трёхкомпонентного зонда:
+
+```powershell
+python probe_optimization.py --config probe_optimization.yaml
+```
+
+Результаты появятся в `probe_optimization_results`.
+
+Для подгонки магнитной модели по измеренному CSV-файлу используйте колонки `r_m`, `z_m`, `B_r_T`, `B_z_T` и `sigma_B_T`:
+
+```powershell
+python field_calibration.py --config config.yaml --measurements data/plmm_field.csv --output-config config_calibrated.yaml --report field_calibration_report.json
+```
+
+Параметры подгонки добавляются в секцию `field_calibration.parameters` конфигурации. Каждый элемент содержит путь YAML, начальное значение и границы `lower`, `upper`.

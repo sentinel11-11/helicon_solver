@@ -97,7 +97,7 @@ class ThreeAxisProbe:
             rp = np.hypot(xyz[:, 0], xyz[:, 1])
             ph = np.arctan2(xyz[:, 1], xyz[:, 0])
             samples = np.column_stack((rp, xyz[:, 2]))
-            components = np.column_stack([interp(samples) for interp in interpolators])
+            components = np.asarray(np.column_stack([interp(samples) for interp in interpolators]), dtype=complex)
             components *= np.exp(1j * m * ph)[:, None]
             cart = np.column_stack((components[:, 0] * np.cos(ph) - components[:, 1] * np.sin(ph),
                                     components[:, 0] * np.sin(ph) + components[:, 1] * np.cos(ph),

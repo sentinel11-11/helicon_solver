@@ -173,3 +173,18 @@ output:
   save_scan_fields: true
   scan_extra_plots: true
   dpi: 160
+field_calibration:
+  max_nfev: 200
+  parameters:
+  - path: plasma.magnetic_field.solenoid.radius_m
+    initial: 0.04
+    lower: 0.035
+    upper: 0.05
+  - path: plasma.magnetic_field.magnets.center_radius_m
+    initial: 0.045
+    lower: 0.035
+    upper: 0.055
+  - path: plasma.magnetic_field.magnets.remanence_T
+    initial: 1.2
+    lower: 0.2
+    upper: 1.5

@@ -1,0 +1,72 @@
+fields_root: results
+modes:
+- 1
+frequencies_Hz:
+- 5.0e6
+- 7.5e6
+- 9.8e6
+- 12.0e6
+- 15.0e6
+positions:
+- r_m: 0.005
+  z_m: 0.25
+- r_m: 0.010
+  z_m: 0.30
+- r_m: 0.015
+  z_m: 0.35
+- r_m: 0.020
+  z_m: 0.40
+- r_m: 0.015
+  z_m: 0.45
+probe:
+  turns:
+  - 10
+  - 10
+  - 10
+  area_m2:
+  - 2.0e-6
+  - 2.0e-6
+  - 2.0e-6
+  series_resistance_ohm:
+  - 2.0
+  - 2.0
+  - 2.0
+  series_inductance_H:
+  - 2.0e-7
+  - 2.0e-7
+  - 2.0e-7
+  load_resistance_ohm:
+  - 50.0
+  - 50.0
+  - 50.0
+  delay_s:
+  - 0.0
+  - 0.0
+  - 0.0
+  cross_talk:
+  - - 1.0
+    - 0.0
+    - 0.0
+  - - 0.0
+    - 1.0
+    - 0.0
+  - - 0.0
+    - 0.0
+    - 1.0
+bounds:
+  turns:
+  - 3
+  - 30
+  area_m2:
+  - 1.0e-7
+  - 1.0e-5
+evaluation:
+  noise_voltage_V: 1.0e-6
+  rings: 3
+  angles: 16
+optimizer:
+  maxiter: 12
+  popsize: 6
+  seed: 1234
+  polish: true
+output_dir: probe_optimization_results

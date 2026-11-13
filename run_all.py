@@ -38,7 +38,7 @@ COLUMNS = (
 )
 
 SOURCE_FILES = (
-    "solver.py", "discretization.py", "plasma.py", "boundary.py", "background.py", "magnetic_system.py", "magnetic_3d.py", "double_layer.py",
+    "solver.py", "discretization.py", "plasma.py", "boundary.py", "background.py", "magnetic_system.py", "magnetic_3d.py", "field_calibration.py", "probe_optimization.py", "double_layer.py",
     "probe.py", "wave_analysis.py", "diagnostics.py", "main.py", "run_all.py",
 )
 
