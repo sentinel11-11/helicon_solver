@@ -40,6 +40,8 @@ def save_fields(solver, target):
                   ne=solver.background.n_e, B0_r=solver.background.B_r,
                   B0_z=solver.background.B_z, absorbed_power=solver.compute_absorbed_power(),
                   dielectric_loss=solver.compute_material_absorption())
+    arrays["physical_mask"] = solver.physical_domain_mask()
+    arrays["non_pml_mask"] = solver.non_pml_domain_mask()
     if solver.cfg.get("output", {}).get("save_fields_npz", True):
         np.savez_compressed(path / "fields.npz", **arrays)
     if solver.cfg.get("output", {}).get("save_hdf5", False):
@@ -65,6 +67,8 @@ def main(config_path="config.yaml", *, dry_run=False):
     if solver.double_layer is not None:
         solver.double_layer.export(output / "prescribed_double_layer.csv")
     solver.solve()
+    power_budget = solver.energy_budget()
+    (output / "energy_budget.json").write_text(json.dumps(power_budget, indent=2, allow_nan=False), encoding="utf8")
     diagnostics = Diagnostics(solver, str(output), config["output"].get("dpi", 160))
     diagnostics.plot_field_map()
     diagnostics.plot_radial_profiles()
@@ -73,6 +77,7 @@ def main(config_path="config.yaml", *, dry_run=False):
     diagnostics.plot_wave_structure()
     diagnostics.plot_absorbed_power()
     diagnostics.plot_poynting()
+    diagnostics.plot_power_budget()
     diagnostics.plot_dispersion_map()
     probe_config = config["probe"]
     if config.get("probe_3axis", {}).get("enabled", False):
@@ -98,7 +103,8 @@ def main(config_path="config.yaml", *, dry_run=False):
         "field_phase_convention": "exp(i*m*phi - i*kz*z + i*omega*t)",
         "relative_residual": solver.relative_residual,
         "grid": [solver.Nr, solver.Nz],
-        "physical_absorbed_power_W": solver.integrated_absorbed_power(),
+        "physical_absorbed_power_W": power_budget["physical"]["absorbed_power_W"],
+        "power_budget": power_budget,
         "magnetic_divergence_grid_indicator": solver.magnetic_divergence_quality(),
         "magnetic_field_model": solver.background.magnetic_metadata,
         "dispersion_reference_n_e_m3": getattr(solver, "dispersion_reference_n_e", None),

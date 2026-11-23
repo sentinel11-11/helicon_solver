@@ -50,6 +50,14 @@ class WaveAnalysisTests(unittest.TestCase):
         self.assertFalse(result.reason)
         self.assertAlmostEqual(result.kz, 13.0, delta=0.15)
 
+    def test_large_field_outside_observation_region_does_not_hide_clean_wave(self):
+        solver = SyntheticSolver()
+        for field in solver.fields:
+            field[solver.r > solver.r0] *= 1e12
+        result = analyze_axial_wave(solver)
+        self.assertFalse(result.reason)
+        self.assertAlmostEqual(result.kz, 13.0, delta=0.05)
+
     def test_reflection_is_rejected(self):
         result = analyze_axial_wave(SyntheticSolver(reflection=0.9))
         self.assertTrue(np.isnan(result.kz))

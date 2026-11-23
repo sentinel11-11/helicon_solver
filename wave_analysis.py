@@ -30,7 +30,8 @@ def analyze_axial_wave(solver):
     settings = cfg.get("solver", {})
     source_end = float(cfg["antenna"]["z_position"]) + float(cfg["antenna"]["length"])
     margin = max(4 * solver.dz, min(0.02, 0.025 * solver.L))
-    z_end = solver.L - int(grid["pml_z"]) * solver.dz - margin
+    z_end = min(solver.L, float(solver.z[-1] + 0.5 * solver.dz)
+                - int(grid["pml_z"]) * solver.dz) - margin
     mask_z = (solver.z >= source_end + margin) & (solver.z <= z_end)
     z = solver.z[mask_z]
     if z.size < 12:
@@ -48,9 +49,11 @@ def analyze_axial_wave(solver):
     magnetic = solver.compute_magnetic_field()
     names = ("Br", "Bphi", "Bz")
     entries = []
-    all_peak = max(float(np.max(np.abs(b[:, mask_z]))) for b in magnetic)
+    # Synthetic PML fields and unobserved radial regions must not set amplitude
+    # thresholds for the physical wave-analysis window.
+    all_peak = max(float(np.max(np.abs(b[available][:, mask_z]))) for b in magnetic)
     for name, field in zip(names, magnetic):
-        comp_peak = float(np.max(np.abs(field[:, mask_z])))
+        comp_peak = float(np.max(np.abs(field[available][:, mask_z])))
         for ir in r_indices:
             trace = np.asarray(field[ir, mask_z], dtype=np.complex128)
             peak = float(np.max(np.abs(trace)))

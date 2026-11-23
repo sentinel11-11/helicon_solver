@@ -6,6 +6,7 @@ from scipy.interpolate import LinearNDInterpolator, NearestNDInterpolator
 
 from plasma import density_profile
 from magnetic_system import build_magnetic_field
+from domain import axial_domain
 
 
 class Background:
@@ -13,6 +14,14 @@ class Background:
         self.config = config
         self.r = np.asarray(r, dtype=float)
         self.z = np.asarray(z, dtype=float)
+        self.computational_z = self.z.copy()
+        axial_domain(config)  # validate even when called independently
+        physical_indices = np.flatnonzero((self.z >= 0) & (self.z <= float(config["plasma"]["length"])))
+        if physical_indices.size < 3:
+            raise ValueError("At least three axial cells must lie in the physical domain")
+        # Evaluate the original equilibrium on its original cell centers. Then
+        # continue its constitutive parameters, rather than extending the device.
+        self.z = self.z[physical_indices]
         self.R, self.Z = np.meshgrid(self.r, self.z, indexing="ij")
         p = config["plasma"]
         self.radius = float(p["radius"])
@@ -41,8 +50,6 @@ class Background:
         self.B_z = np.full_like(self.R, float(p["B0"]))
         self.magnetic_metadata = {"model": "uniform", "uniform_B0_T": float(p["B0"])}
         self._set_field(p.get("magnetic_field"))
-        self.magnetic_divergence = self.divergence_report()
-        self.magnetic_metadata["divergence"] = self.magnetic_divergence
         self.relative_permittivity = np.ones_like(self.R, dtype=complex)
         self.material_mask = np.zeros_like(self.R, dtype=bool)
         for layer in config.get("materials", {}).get("layers", []):
@@ -63,6 +70,21 @@ class Background:
             raise ValueError("Density and collision frequencies must be nonnegative")
         if not np.all(np.isfinite(self.B_z)) or not np.all(np.isfinite(self.B_r)):
             raise ValueError("Background magnetic field contains non-finite values")
+        physical_divergence = self.divergence_report()
+        indices = np.searchsorted(self.z, self.computational_z)
+        indices = np.clip(indices, 0, len(self.z) - 1)
+        for name in ("n_e", "nu_e", "nu_i", "B_r", "B_z", "relative_permittivity", "material_mask"):
+            setattr(self, name, getattr(self, name)[:, indices])
+        self.z = self.computational_z
+        self.R, self.Z = np.meshgrid(self.r, self.z, indexing="ij")
+        self.magnetic_divergence = physical_divergence
+        self.magnetic_metadata["divergence"] = physical_divergence
+        if len(physical_indices) != len(self.z):
+            self.magnetic_metadata["axial_buffer"] = {
+                "medium": "edge_constitutive_continuation",
+                "physical_equilibrium_divergence_only": True,
+                "is_physical_device_extension": False,
+            }
 
     def _axial_factor(self, spec):
         if not spec or spec.get("model", "uniform") == "uniform":
