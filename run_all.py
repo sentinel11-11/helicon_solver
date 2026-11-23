@@ -45,7 +45,7 @@ COLUMNS = (
 SOURCE_FILES = (
     "solver.py", "discretization.py", "plasma.py", "boundary.py", "background.py", "magnetic_system.py", "magnetic_3d.py", "field_calibration.py", "probe_optimization.py", "double_layer.py",
     "probe.py", "wave_analysis.py", "diagnostics.py", "main.py", "run_all.py",
-    "domain.py", "energy.py",
+    "domain.py", "energy.py", "quadratic_modes.py",
 )
 
 
@@ -301,6 +301,7 @@ def main(
                 yaml.safe_dump(config, allow_unicode=True, sort_keys=False), encoding="utf-8"
             )
             solver = HeliconSolver(config)
+            solver.run_fingerprint = fingerprint
             solver.solve()
             power_budget = solver.energy_budget()
             _atomic_json(case_dir / "energy_budget.json", power_budget)
@@ -314,6 +315,7 @@ def main(
                 save_fields(solver, case_dir)
             solver.compute_wave_structure()
             candidate_modes = solver.compute_dispersion_modes()
+            _atomic_json(case_dir / "radial_solver.json", solver.dispersion_diagnostics)
             k_theory = configured_theoretical_kz(
                 solver.omega,
                 solver.dispersion_reference_n_e,

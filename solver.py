@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import sparse
-from scipy.linalg import eig as dense_generalized_eig
 from scipy.sparse.linalg import (
     bicgstab as scipy_bicgstab,
     gmres as scipy_gmres,
@@ -23,6 +22,7 @@ from background import Background
 from double_layer import DoubleLayerDiagnostics
 from discretization import cylindrical_curl_pair, radial_curl_polynomial, radial_grid_oscillation, regular_axis_projection
 from domain import axial_domain, non_pml_mask, physical_mask
+from quadratic_modes import solve_quadratic, polynomial_residual
 
 
 def _try_cupy():
@@ -633,17 +633,16 @@ class HeliconSolver:
         if axis_q is not None:
             adj = axis_q.conj().T
             A0, A1, A2 = ((adj@a@axis_q).tocsr() for a in (A0, A1, A2))
-        n = A0.shape[0]
-        O = sparse.csr_matrix((n, n), dtype=complex)
-        I_n = sparse.eye(n, format="csr", dtype=complex)
-        left = sparse.bmat([[O, I_n], [-A0, -A1]], format="csr").toarray()
-        right = sparse.bmat([[I_n, O], [O, A2]], format="csr").toarray()
+        scaling = str(self.cfg.get("solver", {}).get("radial_pencil_scaling", "equilibrated"))
         if threadpool_limits is None:
-            vals, vecs = dense_generalized_eig(left, right, right=True, check_finite=False)
+            vals, vecs, pencil_report = solve_quadratic(A0, A1, A2, scaling=scaling)
         else:
           
             with threadpool_limits(limits=1, user_api="blas"):
-                vals, vecs = dense_generalized_eig(left, right, right=True, check_finite=False)
+                vals, vecs, pencil_report = solve_quadratic(A0, A1, A2, scaling=scaling)
+        self.dispersion_diagnostics = pencil_report
+        print(f"[radial-pencil] scaling={scaling}; k_scale={pencil_report['k_scale_rad_m']:.3e} 1/m; "
+              f"finite roots={pencil_report['finite_eigenvalues']}", flush=True)
 
         active = n_profile > max(float(np.max(n_profile)) * 1e-8, 0.0)
         if np.any(active):
@@ -678,9 +677,8 @@ class HeliconSolver:
             if any(abs(kval - existing["kz"]) < max(1e-2, 1e-3 * abs(kval)) for existing in selected):
                 continue
 
-            e = np.asarray(vecs[:n, idx], dtype=complex)
-            terms = (A0@e, kval*(A1@e), kval**2*(A2@e))
-            qep_residual = float(np.linalg.norm(sum(terms))/max(sum(np.linalg.norm(t) for t in terms), 1e-300))
+            e = np.asarray(vecs[:, idx], dtype=complex)
+            qep_residual = polynomial_residual(A0, A1, A2, kval, e)
             if not np.isfinite(qep_residual) or qep_residual > float(self.cfg.get("solver", {}).get("eigenmode_max_qep_residual", 1e-7)):
                 continue
             if axis_q is not None:
@@ -711,8 +709,18 @@ class HeliconSolver:
                 "Examine the mode family, radial mesh and boundary conditions."
             )
         self.dispersion_modes = selected
+        self.dispersion_diagnostics.update(
+            accepted_candidates=len(selected),
+            mesh_screened_candidates=sum(mode["radial_grid_resolved"] for mode in selected),
+            min_qep_residual=min(mode["qep_relative_residual"] for mode in selected),
+            max_qep_residual=max(mode["qep_relative_residual"] for mode in selected),
+        )
         self.dispersion_z_m = float(self.z[jr])
         self.dispersion_grid_Nr = Nr
+        print(f"[radial-spectrum] candidates={len(selected)}; "
+              f"mesh-screened={self.dispersion_diagnostics['mesh_screened_candidates']}; "
+              f"QEP residual range={self.dispersion_diagnostics['min_qep_residual']:.3e}.."
+              f"{self.dispersion_diagnostics['max_qep_residual']:.3e}", flush=True)
         return selected
 
     def compute_absorbed_power(self):
