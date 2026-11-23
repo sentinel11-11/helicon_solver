@@ -32,6 +32,8 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
     w = config["wave"]
     s = config["solver"]
     axis_method = str(s.get("axis_regularization", "legacy"))
+    if s.get("radial_pencil_scaling", "equilibrated") not in ("none", "equilibrated"):
+        raise ValueError("solver.radial_pencil_scaling must be none or equilibrated")
     if axis_method not in ("legacy", "coupled_m1"):
         raise ValueError("solver.axis_regularization must be legacy or coupled_m1")
     ant = config["antenna"]

@@ -44,6 +44,15 @@ def save_fields(solver, target):
     arrays["non_pml_mask"] = solver.non_pml_domain_mask()
     hr, hp, hz = solver.compute_magnetic_intensity()
     arrays.update(H_r=hr, H_phi=hp, H_z=hz, absorber_epsilon_loss=solver.absorber_epsilon_loss)
+    metadata = {
+        "frequency_Hz": float(solver.cfg["wave"]["frequency"]),
+        "m": int(solver.cfg["wave"].get("m_mode", 0)),
+        "grid": [solver.Nr, solver.Nz],
+        "boundary": solver.cfg.get("boundary", {}),
+        "axis_regularization": solver.cfg.get("solver", {}).get("axis_regularization", "legacy"),
+        "source_fingerprint": getattr(solver, "run_fingerprint", None),
+    }
+    (path/"fields_metadata.json").write_text(json.dumps(metadata, indent=2, allow_nan=False), encoding="utf8")
     if solver.cfg.get("output", {}).get("save_fields_npz", True):
         np.savez_compressed(path / "fields.npz", **arrays)
     if solver.cfg.get("output", {}).get("save_hdf5", False):

@@ -1,0 +1,107 @@
+{
+  "date": "2026-11-24",
+  "config": "config_passive_10MHz_200x800.yaml",
+  "frequency_Hz": 10000000.0,
+  "m": 1,
+  "driven_grid": [
+    200,
+    800
+  ],
+  "physical_mode_validated": false,
+  "runtime": {
+    "system": "Linux",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0"
+  },
+  "grid_sequence": [
+    {
+      "radial_Nr": 200,
+      "radial_pml_cells": 15,
+      "scaling": "equilibrated",
+      "pencil": {
+        "scaling": "equilibrated",
+        "k_scale_rad_m": 9037.796525832167,
+        "polynomial_dimension": 599,
+        "finite_eigenvalues": 838,
+        "column_scale_min": 1.0,
+        "column_scale_max": 1.414209180726914,
+        "accepted_candidates": 131,
+        "mesh_screened_candidates": 27,
+        "min_qep_residual": 4.887658132876182e-14,
+        "max_qep_residual": 2.7645324495167403e-11
+      },
+      "source_fingerprint": "6d9deae130038065fe81767f6ebd25f07e1c205601b265ac0f4ab2e1d06e43a1",
+      "field_solve_repeated": false,
+      "physical_mode_validated": false,
+      "selection": "heuristic initial seed; theory is a branch hint only",
+      "status": "numerically_screened_local_mode",
+      "kz_real_rad_m": 19.214729335662124,
+      "kz_imag_rad_m": -3.4693861806864636,
+      "qep_residual": 8.855760901297881e-12,
+      "roughness": 0.09503421164656851,
+      "physical_overlap_previous_grid": null
+    },
+    {
+      "radial_Nr": 240,
+      "radial_pml_cells": 18,
+      "scaling": "equilibrated",
+      "pencil": {
+        "scaling": "equilibrated",
+        "k_scale_rad_m": 10826.583491051528,
+        "polynomial_dimension": 719,
+        "finite_eigenvalues": 1012,
+        "column_scale_min": 1.0,
+        "column_scale_max": 1.414210519560367,
+        "accepted_candidates": 157,
+        "mesh_screened_candidates": 34,
+        "min_qep_residual": 5.359964745766007e-14,
+        "max_qep_residual": 1.465643166056475e-11
+      },
+      "source_fingerprint": "6bcf58434ec4f87606769d7e752081c7820672f37d79c8dbf90f353710a13907",
+      "field_solve_repeated": false,
+      "physical_mode_validated": false,
+      "selection": "maximum r-weighted overlap outside radial absorber",
+      "relative_kz_change": 0.09549860973745432,
+      "status": "numerically_screened_local_mode",
+      "kz_real_rad_m": 17.35023020906991,
+      "kz_imag_rad_m": -3.4932263568847377,
+      "qep_residual": 4.853749489532594e-12,
+      "roughness": 0.06723931825973961,
+      "physical_overlap_previous_grid": 0.9907969046983144
+    },
+    {
+      "radial_Nr": 280,
+      "radial_pml_cells": 21,
+      "scaling": "equilibrated",
+      "pencil": {
+        "scaling": "equilibrated",
+        "k_scale_rad_m": 12615.337083642344,
+        "polynomial_dimension": 839,
+        "finite_eigenvalues": 1179,
+        "column_scale_min": 1.0,
+        "column_scale_max": 1.414211326835937,
+        "accepted_candidates": 182,
+        "mesh_screened_candidates": 41,
+        "min_qep_residual": 6.988741572775286e-14,
+        "max_qep_residual": 1.89257942868629e-11
+      },
+      "source_fingerprint": "7b4aa4775e40c9611ee930eae4c6ae5440f9676c0b88fffd3c7f2eb3c6b86953",
+      "field_solve_repeated": false,
+      "physical_mode_validated": false,
+      "selection": "maximum r-weighted overlap outside radial absorber",
+      "relative_kz_change": 0.0793463444562938,
+      "status": "numerically_screened_local_mode",
+      "kz_real_rad_m": 15.946502889825732,
+      "kz_imag_rad_m": -3.533425314809454,
+      "qep_residual": 7.630497043310622e-12,
+      "roughness": 0.04973584715462657,
+      "physical_overlap_previous_grid": 0.9966903374227508
+    }
+  ],
+  "reversed_equation_order": {
+    "kz_real_rad_m": 19.214729338406233,
+    "kz_imag_rad_m": -3.4693861752308934,
+    "qep_residual": 2.8480656158622875e-12,
+    "roughness": 0.0950343002196693
+  }
+}

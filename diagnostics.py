@@ -17,6 +17,16 @@ class Diagnostics:
         os.makedirs(results_dir, exist_ok=True)
 
     def _save(self, fig, name):
+        s = self.solver
+        tag = (f"f={float(s.cfg['wave']['frequency'])/1e6:g} MHz | m={int(s.cfg['wave'].get('m_mode', 0))} | "
+               f"{s.cfg.get('boundary', {}).get('pml_formulation', 'legacy_stretched')} | "
+               f"axis={s.cfg.get('solver', {}).get('axis_regularization', 'legacy')} | "
+               f"field grid={s.Nr}x{s.Nz}")
+        if hasattr(s, "dispersion_grid_Nr"):
+            tag += f" | radial Nr={s.dispersion_grid_Nr}"
+        if getattr(s, "run_fingerprint", None):
+            tag += f" | id={s.run_fingerprint[:10]}"
+        fig.text(.01, .002, tag, fontsize=5, color="gray")
         path = os.path.join(self.results_dir, name)
         fig.savefig(path, dpi=self.dpi, bbox_inches="tight")
         plt.close(fig)
@@ -313,14 +323,14 @@ class Diagnostics:
         theory_model = str(s.cfg.get("solver", {}).get("theory_model", "whistler")).lower()
         theory_label = "Full Stix\nparallel branch" if theory_model in ("full_stix", "stix", "parallel_stix") else "Whistler\nasymptote"
         labels = [theory_label, "Radial eigenmode\n(mesh-screened)" if eigen_resolved else "Radial eigenmode\n(UNVERIFIED)"]
-        values = [abs(k_theory) / 100, abs(k_eigenmode) / 100]
+        values = [abs(k_theory.real) / 100, abs(k_eigenmode.real) / 100]
         colors = ["steelblue", "seagreen" if eigen_resolved else "gray"]
         if np.isfinite(k_sim):
             labels.append("Driven-field\nphase fit")
             values.append(abs(k_sim) / 100)
             colors.append("coral")
         ax.bar(labels, values, color=colors)
-        ax.set_ylabel(r"$|k_z|$, cm$^{-1}$")
+        ax.set_ylabel(r"$|\mathrm{Re}(k_z)|$, cm$^{-1}$")
         ax.set_title("Asymptotic theory, radial eigenmode and source-driven field")
         ax.grid(True, alpha=0.3, axis="y")
         self._save(fig, "theory_vs_sim.png")

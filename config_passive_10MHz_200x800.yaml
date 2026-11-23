@@ -104,6 +104,8 @@ solver:
   max_radial_grid_oscillation: 0.22
   require_passive_boundary: true
   axis_regularization: coupled_m1
+  radial_pencil_scaling: equilibrated
+  strict_radial_validation: true
 antenna:
   type: helical
   z_position: 0.15
