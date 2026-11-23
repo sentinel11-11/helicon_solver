@@ -1,0 +1,100 @@
+{
+  "purpose": "Sensitivity to axial termination; not a physical-model validation",
+  "frequency_Hz": 10000000.0,
+  "m": 1,
+  "physical_length_m": 0.608,
+  "dr_m": 0.00017500000000000003,
+  "dz_m": 0.0007599999999999999,
+  "pml_z_m": 0.022799999999999997,
+  "buffer_medium": "artificial edge constitutive continuation",
+  "baseline": {
+    "grid": [
+      200,
+      800
+    ],
+    "computational_z_max_m": 0.608,
+    "linear_residual": 5.03999360647041e-07,
+    "physical_box": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.0228,
+      "z_right_m": 0.5851999999999999,
+      "source_power_W": 5.808308516395446e-09,
+      "absorbed_power_W": 0.0006273745771152581,
+      "left_face_plus_z_W": 1.2636710621543906e-05,
+      "right_face_plus_z_W": -0.0006314416792068685,
+      "radial_outward_W": -7.3588405256676695e-09,
+      "net_outward_W": -0.0006440857486689381,
+      "balance_defect_W": 1.6716979862196435e-05,
+      "relative_balance_defect": 0.02647430540726111,
+      "net_boundary_inflow": true,
+      "source_small_relative_to_power_terms": true,
+      "artificial_absorbed_power_W": 0.0
+    },
+    "non_pml_box": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.0228,
+      "z_right_m": 0.5851999999999999,
+      "source_power_W": 5.808308516395446e-09,
+      "absorbed_power_W": 0.0006273745771152581,
+      "left_face_plus_z_W": 1.2636710621543906e-05,
+      "right_face_plus_z_W": -0.0006314416792068685,
+      "radial_outward_W": -7.3588405256676695e-09,
+      "net_outward_W": -0.0006440857486689381,
+      "balance_defect_W": 1.6716979862196435e-05,
+      "relative_balance_defect": 0.02647430540726111,
+      "net_boundary_inflow": true,
+      "source_small_relative_to_power_terms": true,
+      "artificial_absorbed_power_W": 0.0
+    }
+  },
+  "axial_buffer": {
+    "grid": [
+      200,
+      1000
+    ],
+    "computational_z_max_m": 0.76,
+    "linear_residual": 5.493070212783694e-07,
+    "physical_box": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.022800000000000004,
+      "z_right_m": 0.6080000000000001,
+      "source_power_W": 8.755173632550024e-09,
+      "absorbed_power_W": 9.068635112485065e-06,
+      "left_face_plus_z_W": 2.9221379531298835e-06,
+      "right_face_plus_z_W": 2.1174443925382027e-11,
+      "radial_outward_W": 2.2321675511511707e-10,
+      "net_outward_W": -2.9218935619308432e-06,
+      "balance_defect_W": -6.137986376921672e-06,
+      "relative_balance_defect": 0.6768368448821279,
+      "net_boundary_inflow": true,
+      "source_small_relative_to_power_terms": false,
+      "artificial_absorbed_power_W": 0.0
+    },
+    "non_pml_box": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.022800000000000004,
+      "z_right_m": 0.7372000000000001,
+      "source_power_W": 8.755173632550024e-09,
+      "absorbed_power_W": 1.538613218326571e-05,
+      "left_face_plus_z_W": 2.9221379531298835e-06,
+      "right_face_plus_z_W": -1.5361025014717593e-05,
+      "radial_outward_W": 2.2159826306176005e-10,
+      "net_outward_W": -1.8282941369584415e-05,
+      "balance_defect_W": 2.905564359951255e-06,
+      "relative_balance_defect": 0.18884306499793427,
+      "net_boundary_inflow": true,
+      "source_small_relative_to_power_terms": false,
+      "artificial_absorbed_power_W": 0.0
+    }
+  },
+  "comparison": {
+    "fixed_window_m": [
+      0.27018,
+      0.5498599999999999
+    ],
+    "relative_E_change": 0.9995701382762749,
+    "normalization": "baseline r-weighted field L2, radial PML excluded",
+    "physical_model_validated": false
+  },
+  "interpretation": "Both linear residuals pass. E changes by almost 100% over the common fixed window. Net boundary inflow remains present. Extending the buffer has not validated or repaired the boundary formulation. Physical integration volumes differ; use the common-window E comparison for sensitivity."
+}

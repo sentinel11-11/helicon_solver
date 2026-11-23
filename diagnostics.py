@@ -22,6 +22,24 @@ class Diagnostics:
         plt.close(fig)
         print(f"[saved] {path}")
 
+    def _mark_axial_regions(self, ax):
+        s = self.solver
+        start = float(s.z[0]-0.5*s.dz)
+        end = float(s.z[-1]+0.5*s.dz)
+        if start < -1e-12:
+            ax.axvspan(start*100, 0, color="gray", alpha=0.15, label="artificial buffer")
+            ax.axvline(0, color="gray", ls="--", lw=0.8)
+        if end > s.L+1e-12:
+            ax.axvspan(s.L*100, end*100, color="gray", alpha=0.15, label="artificial buffer")
+            ax.axvline(s.L*100, color="gray", ls="--", lw=0.8)
+        width = int(s.cfg["grid"].get("pml_z", 0))*s.dz
+        if width:
+            for left, right in ((start, start+width), (end-width, end)):
+                ax.axvspan(left*100, right*100, facecolor="none", edgecolor="gray",
+                           hatch="///", linewidth=0, alpha=0.4)
+                ax.text((left+right)*50, 0.98, "PML", ha="center", va="top", fontsize=6,
+                        rotation=90, color="gray", transform=ax.get_xaxis_transform())
+
     def plot_field_map(self):
         s = self.solver
         fig, axes = plt.subplots(3, 1, figsize=(10, 11), sharex=True)
@@ -40,6 +58,7 @@ class Diagnostics:
             ax.axhline(s.r0 * 100, color="deepskyblue", linestyle="--", linewidth=1.1)
             ax.set_ylabel("r, cm")
             ax.set_title(title)
+            self._mark_axial_regions(ax)
             ax.grid(False)
             fig.colorbar(im, ax=ax, label="V/m (magnitude)")
         axes[-1].set_xlabel("z, cm")
@@ -123,6 +142,7 @@ class Diagnostics:
             axes[row, 0].set_ylabel("r, cm")
             for ax in axes[row]:
                 ax.axhline(s.r0 * 100, ls="--", lw=0.8, color="deepskyblue")
+                self._mark_axial_regions(ax)
         for ax in axes[-1]:
             ax.set_xlabel("z, cm")
         fig.tight_layout()
@@ -177,6 +197,7 @@ class Diagnostics:
         ax.set_xlabel("z, cm")
         ax.set_ylabel("r, cm")
         ax.set_title("Estimated absorbed power density")
+        self._mark_axial_regions(ax)
         fig.colorbar(im, ax=ax, label=r"W/m$^3$")
         self._save(fig, "absorbed_power.png")
 
@@ -190,8 +211,35 @@ class Diagnostics:
         ax.set_xlabel("z, cm")
         ax.set_ylabel("r, cm")
         ax.set_title("Physical-domain axial Poynting flux")
+        self._mark_axial_regions(ax)
         fig.colorbar(im, ax=ax, label=r"W/m$^2$")
         self._save(fig, "poynting.png")
+
+    def plot_power_budget(self):
+        s = self.solver
+        mask = s.physical_domain_mask()
+        radial, axial = s.compute_poynting()
+        weights = 2*np.pi*s.r[:, None]*s.dr
+        flux = np.sum(np.where(mask, axial, 0)*weights, axis=0)
+        absorption = s.compute_absorbed_power()+s.compute_material_absorption()
+        absorbed_per_m = np.sum(np.where(mask, absorption, 0)*weights, axis=0)
+        source = np.asarray(s.source_current).reshape(3, s.Nr, s.Nz)
+        fields = np.stack((s.Er, s.Ephi, s.Ez))
+        supplied = -0.5*np.real(np.sum(fields*np.conj(source), axis=0))
+        supplied_per_m = np.sum(np.where(mask, supplied, 0)*weights, axis=0)
+        active = np.any(mask, axis=0)
+        fig, axes = plt.subplots(2, 1, figsize=(9, 7), sharex=True)
+        axes[0].plot(s.z[active]*100, flux[active], label="signed axial power")
+        axes[0].axhline(0, color="gray", lw=0.8)
+        axes[0].set_ylabel("Pz, W")
+        axes[0].set_title("Power accounting in the physical, non-PML domain")
+        axes[1].plot(s.z[active]*100, absorbed_per_m[active], label="plasma + material absorption")
+        axes[1].plot(s.z[active]*100, supplied_per_m[active], label="antenna power supplied")
+        axes[1].set(xlabel="z, cm", ylabel="W/m")
+        for ax in axes:
+            ax.grid(True, alpha=0.3)
+            ax.legend(fontsize=8)
+        self._save(fig, "power_budget.png")
 
     def plot_dispersion_map(self):
         s = self.solver

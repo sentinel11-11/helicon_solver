@@ -22,6 +22,7 @@ from boundary import PML
 from background import Background
 from double_layer import DoubleLayerDiagnostics
 from discretization import cylindrical_curl_pair, radial_curl_polynomial, radial_grid_oscillation
+from domain import axial_domain, non_pml_mask, physical_mask
 
 
 def _try_cupy():
@@ -174,9 +175,10 @@ class HeliconSolver:
                 "reduce grid.pml_r, or refine grid.Nr."
             )
         self.dr = self.r_extent / self.Nr
-        self.dz = self.L / self.Nz
+        self.z_min, self.z_max = axial_domain(self.cfg)
+        self.dz = (self.z_max - self.z_min) / self.Nz
         self.r = (np.arange(self.Nr) + 0.5) * self.dr
-        self.z = (np.arange(self.Nz) + 0.5) * self.dz
+        self.z = self.z_min + (np.arange(self.Nz) + 0.5) * self.dz
         self.R, self.Z = np.meshgrid(self.r, self.z, indexing="ij")
 
     def _setup_plasma(self):
@@ -671,8 +673,10 @@ class HeliconSolver:
         self.compute_absorbed_power()
         return self.material_absorption
 
-    def integrated_absorbed_power(self):
+    def integrated_absorbed_power(self, physical_only=True):
         density = self.compute_absorbed_power()
+        if physical_only:
+            density = np.where(self.physical_domain_mask(), density, 0.0)
         return float(2 * np.pi * np.sum(density * self.r[:, None]) * self.dr * self.dz)
 
     def compute_magnetic_field(self):
@@ -695,15 +699,15 @@ class HeliconSolver:
         return radial, axial
 
     def physical_domain_mask(self, extra_radial_cells=0, extra_axial_cells=0):
-        radial_margin = int(self.cfg["grid"].get("pml_r", 0)) + int(extra_radial_cells)
-        axial_margin = int(self.cfg["grid"].get("pml_z", 0)) + int(extra_axial_cells)
-        mask = np.ones((self.Nr, self.Nz), dtype=bool)
-        if radial_margin:
-            mask[max(self.Nr - radial_margin, 0):, :] = False
-        if axial_margin:
-            mask[:, :axial_margin] = False
-            mask[:, max(self.Nz - axial_margin, 0):] = False
-        return mask
+        return physical_mask(self.cfg, self.r, self.z, self.dr, self.dz,
+                             extra_radial_cells, extra_axial_cells)
+
+    def non_pml_domain_mask(self):
+        return non_pml_mask(self.cfg, self.r, self.z, self.dr, self.dz)
+
+    def energy_budget(self):
+        from energy import energy_budget
+        return energy_budget(self)
 
     def compute_poynting_z(self, physical_only=False):
         axial = self.compute_poynting()[1]
@@ -719,7 +723,7 @@ class HeliconSolver:
             mask &= self.r <= float(r_max_m)
         values = self.compute_poynting_z(physical_only=False)[:, z_index]
         values = np.where(mask, values, 0.0)
-        return float(2.0 * np.pi * np.trapz(values * self.r, self.r))
+        return float(2.0 * np.pi * np.sum(values * self.r) * self.dr)
 
     def magnetic_divergence_quality(self):
         br, bp, bz = self.compute_magnetic_field()

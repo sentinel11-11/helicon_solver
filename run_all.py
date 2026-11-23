@@ -35,11 +35,14 @@ COLUMNS = (
     "relative_linear_residual", "phase_fit_reliable", "wave_fit_purity",
     "wave_fit_reflection_ratio", "wave_fit_reason", "radial_eigenmode_local_z_m",
     "elapsed_s", "radial_grid_oscillation", "radial_grid_resolved", "status",
+    "physical_absorbed_power_W", "source_power_W", "net_outward_power_W",
+    "surface_power_balance_defect", "boundary_net_inflow", "power_warning_count",
 )
 
 SOURCE_FILES = (
     "solver.py", "discretization.py", "plasma.py", "boundary.py", "background.py", "magnetic_system.py", "magnetic_3d.py", "field_calibration.py", "probe_optimization.py", "double_layer.py",
     "probe.py", "wave_analysis.py", "diagnostics.py", "main.py", "run_all.py",
+    "domain.py", "energy.py",
 )
 
 
@@ -188,6 +191,12 @@ def _result_row(solver: HeliconSolver, selected: dict[str, Any], f: float, m: in
         "radial_grid_oscillation": _finite(selected.get("radial_grid_oscillation", float("nan"))),
         "radial_grid_resolved": bool(selected.get("radial_grid_resolved", False)),
         "status": "ok",
+        "physical_absorbed_power_W": solver.power_budget["physical"]["absorbed_power_W"],
+        "source_power_W": solver.power_budget["physical"]["source_power_W"],
+        "net_outward_power_W": solver.power_budget["physical"]["net_outward_W"],
+        "surface_power_balance_defect": solver.power_budget["physical"]["relative_balance_defect"],
+        "boundary_net_inflow": solver.power_budget["non_pml"]["net_boundary_inflow"],
+        "power_warning_count": len(solver.power_budget["warnings"]),
     }
 
 
@@ -277,6 +286,13 @@ def main(
             )
             solver = HeliconSolver(config)
             solver.solve()
+            power_budget = solver.energy_budget()
+            _atomic_json(case_dir / "energy_budget.json", power_budget)
+            print(f"[power] physical absorption={power_budget['physical']['absorbed_power_W']:.3e} W; "
+                  f"source={power_budget['physical']['source_power_W']:.3e} W; "
+                  f"net outward={power_budget['physical']['net_outward_W']:.3e} W", flush=True)
+            for warning in power_budget["warnings"]:
+                print(f"[power warning] {warning}", flush=True)
             if save_fields_enabled:
                 save_fields(solver, case_dir)
             solver.compute_wave_structure()
@@ -322,6 +338,7 @@ def main(
                 if base["output"].get("scan_extra_plots", True):
                     diag.plot_absorbed_power()
                     diag.plot_poynting()
+                    diag.plot_power_budget()
             elapsed = perf_counter() - started
             row = _result_row(solver, selected, frequency, mode, elapsed)
             previous[mode] = (selected, frequency)

@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
+from domain import axial_domain
 
 
 @dataclass(frozen=True)
@@ -37,6 +38,7 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
     a = float(p["radius"])
     length = float(p["length"])
     extent = float(g["radial_extent"])
+    z_min, z_max = axial_domain(config)
     if not (0 < a < extent and length > 0):
         raise ValueError("Expected 0 < plasma.radius < grid.radial_extent and plasma.length > 0")
     radial_pml = int(g["pml_r"])
@@ -98,6 +100,9 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
 
     unknowns = 3 * nr * nz
     warnings = []
+    if z_min < 0 or z_max > length:
+        warnings.append(f"Physical z=[0, {length:g}] m; computational z=[{z_min:g}, {z_max:g}] m; "
+                        f"dz={(z_max-z_min)/nz:g} m; buffers continue edge constitutive parameters artificially")
     if method == "auto" and unknowns > int(s.get("direct_max_unknowns", 25000)):
         warnings.append("The auto solver selects iterative GMRES; ILU may fail on this FDFD matrix")
     if method == "direct" and unknowns >= 200_000:
