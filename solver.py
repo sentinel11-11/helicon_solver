@@ -7,6 +7,7 @@ from scipy.sparse.linalg import (
     bicgstab as scipy_bicgstab,
     gmres as scipy_gmres,
     spsolve,
+    splu,
     spilu,
     LinearOperator,
 )
@@ -30,6 +31,52 @@ def _try_cupy():
         return cp
     except Exception:
         return None
+
+
+def _direct_refined(A, b, tol, max_steps=6):
+    """Equilibrated LU with corrections from the ORIGINAL system residual.
+
+    Physics and acceptance thresholds are unchanged. Extended arithmetic is
+    used only to accumulate the correction residual; the caller still checks
+    the original double-precision residual used by previous releases.
+    """
+    row_max = np.asarray(abs(A).max(axis=1).toarray()).ravel()
+    row_scale = np.divide(1.0, row_max, out=np.ones_like(row_max), where=row_max > 0)
+    Ar = sparse.diags(row_scale) @ A
+    col_max = np.asarray(abs(Ar).max(axis=0).toarray()).ravel()
+    col_scale = np.divide(1.0, col_max, out=np.ones_like(col_max), where=col_max > 0)
+    equilibrated = (Ar @ sparse.diags(col_scale)).tocsc()
+    del Ar
+    lu = splu(equilibrated)
+    del equilibrated
+    x = col_scale * lu.solve(row_scale * b)
+    # Some platforms alias longdouble to double; record its actual precision.
+    A_ext = A.astype(np.clongdouble)
+    b_ext = b.astype(np.clongdouble)
+    denom = max(float(np.linalg.norm(b)), np.finfo(float).tiny)
+    best_x = x.copy()
+    best_residual = float('inf')
+    stale = 0
+    for step in range(int(max_steps) + 1):
+        measured = float(np.linalg.norm(A @ x - b) / denom)
+        correction_rhs = b_ext - A_ext @ x.astype(np.clongdouble)
+        extended = float(np.linalg.norm(correction_rhs) / denom)
+        print(f'[direct-refine] step={step}, original_residual={measured:.3e}, '
+              f'extended_residual={extended:.3e}, '
+              f'residual_mantissa_bits={np.finfo(np.longdouble).nmant}', flush=True)
+        if np.isfinite(measured) and measured < best_residual:
+            best_residual = measured
+            best_x = x.copy()
+            stale = 0
+        else:
+            stale += 1
+        if measured <= tol or step == max_steps or stale >= 2:
+            break
+        correction = col_scale * lu.solve(row_scale * np.asarray(correction_rhs, dtype=np.complex128))
+        if not np.all(np.isfinite(correction)):
+            break
+        x = x + correction
+    return best_x
 
 
 def _first_derivative(n, h):
@@ -381,7 +428,8 @@ class HeliconSolver:
         )
         if use_direct:
             print(f"[direct] sparse LU solve on CPU ({self.A_cpu.shape[0]} unknowns)")
-            x = spsolve(self.A_cpu, b)
+            x = _direct_refined(self.A_cpu, b, tol,
+                max_steps=int(self.cfg['solver'].get('direct_refine_steps', 6)))
             info = 0
         elif self.use_gpu:
             import cupyx.scipy.sparse.linalg as cpsplinalg
