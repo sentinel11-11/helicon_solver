@@ -37,7 +37,8 @@ class Diagnostics:
             for left, right in ((start, start+width), (end-width, end)):
                 ax.axvspan(left*100, right*100, facecolor="none", edgecolor="gray",
                            hatch="///", linewidth=0, alpha=0.4)
-                ax.text((left+right)*50, 0.98, "PML", ha="center", va="top", fontsize=6,
+                label = "absorber" if s.cfg.get("boundary", {}).get("pml_formulation") == "passive_absorber" else "PML"
+                ax.text((left+right)*50, 0.98, label, ha="center", va="top", fontsize=6,
                         rotation=90, color="gray", transform=ax.get_xaxis_transform())
 
     def plot_field_map(self):
@@ -232,7 +233,7 @@ class Diagnostics:
         axes[0].plot(s.z[active]*100, flux[active], label="signed axial power")
         axes[0].axhline(0, color="gray", lw=0.8)
         axes[0].set_ylabel("Pz, W")
-        axes[0].set_title("Power accounting in the physical, non-PML domain")
+        axes[0].set_title("Power accounting in the physical domain, absorbing layers excluded")
         axes[1].plot(s.z[active]*100, absorbed_per_m[active], label="plasma + material absorption")
         axes[1].plot(s.z[active]*100, supplied_per_m[active], label="antenna power supplied")
         axes[1].set(xlabel="z, cm", ylabel="W/m")
@@ -346,5 +347,7 @@ class Diagnostics:
         if abs(s.omega / (2 * np.pi) - f_lh) / f_lh < 0.2:
             print(f"[physics warning] f={s.omega/(2*np.pi)/1e6:.3f} MHz is near f_LH≈{f_lh/1e6:.3f} MHz; "
                   "the parallel reference branch is not a full radial H/TG dispersion solution here.")
-        print("[NOTE] The radial eigenmode solves this code's discretized cold-plasma model with radial PML; it is not a full Chen/Arnush H-TG benchmark until boundary/model convergence is checked.")
+        formulation = self.solver.cfg.get("boundary", {}).get("pml_formulation", "legacy_stretched")
+        print(f"[NOTE] The local radial eigenmode uses this code's discretized cold-plasma model and {formulation} boundary; "
+              "it is not a full Chen/Arnush H-TG benchmark until boundary/model convergence is checked.")
         return k_theory, k_sim, err_field

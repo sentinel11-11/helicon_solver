@@ -21,7 +21,7 @@ from plasma import StixTensor, PlasmaParams, density_profile, configured_theoret
 from boundary import PML
 from background import Background
 from double_layer import DoubleLayerDiagnostics
-from discretization import cylindrical_curl_pair, radial_curl_polynomial, radial_grid_oscillation
+from discretization import cylindrical_curl_pair, radial_curl_polynomial, radial_grid_oscillation, regular_axis_projection
 from domain import axial_domain, non_pml_mask, physical_mask
 
 
@@ -233,9 +233,27 @@ class HeliconSolver:
         g = self.cfg["grid"]
         m = int(self.cfg["wave"].get("m_mode", 0))
 
+        self.pml_formulation = str(self.cfg.get("boundary", {}).get("pml_formulation", "legacy_stretched"))
+        if self.pml_formulation not in ("legacy_stretched", "tensor", "passive_absorber"):
+            raise ValueError("Unknown boundary.pml_formulation")
+        tensor_pml = self.pml_formulation == "tensor"
+        real_curl = self.pml_formulation != "legacy_stretched"
         self.C, self.C_dual = cylindrical_curl_pair(
-            self.r, self.dr, self.dz, self.sr, self.sz, m,
+            self.r, self.dr, self.dz,
+            np.ones(self.Nr) if real_curl else self.sr,
+            np.ones(self.Nz) if real_curl else self.sz, m,
         )
+        if tensor_pml:
+            epsilon_factors, mu_inverse = self.pml.tensor_factors(self.r)
+        else:
+            epsilon_factors = tuple(tuple(np.ones((Nr, Nz)) for _ in range(3)) for _ in range(3))
+            mu_inverse = tuple(np.ones((Nr, Nz), complex) for _ in range(3))
+        self.mu_inverse = mu_inverse
+        self.Mu_inverse = sparse.diags(np.concatenate([a.ravel() for a in mu_inverse]), format="csr")
+        self.absorber_epsilon_loss = np.zeros((Nr, Nz))
+        if self.pml_formulation == "passive_absorber":
+            self.absorber_epsilon_loss = self.pml.passive_electric_loss(
+                self.omega, self.cfg.get("boundary", {}).get("absorber_conductivity_S_m"))
         physical = _dielectric_components(
             self.S2, self.D2, self.P2,
             self.background.B_r, self.background.B_z,
@@ -255,13 +273,22 @@ class HeliconSolver:
             for col in range(3):
                 values = physical[row][col].ravel().astype(complex).copy()
                 if row == col:
-                    values -= 1j * loss
+                    values -= 1j * (loss+self.absorber_epsilon_loss.ravel())
+                values *= epsilon_factors[row][col].ravel()
                 line.append(sparse.diags(values, format="csr"))
             blocks.append(line)
         self.Eps = sparse.bmat(blocks, format="csr")
 
-        self.A_cpu = (self.C_dual @ self.C - (self.k0**2) * self.Eps).tocsr()
+        self.A_cpu = (self.C_dual @ self.Mu_inverse @ self.C - (self.k0**2) * self.Eps).tocsr()
         self._apply_boundary_termination()
+        axis_method = str(self.cfg.get("solver", {}).get("axis_regularization", "legacy"))
+        if axis_method not in ("legacy", "coupled_m1"):
+            raise ValueError("solver.axis_regularization must be legacy or coupled_m1")
+        self.axis_projection = regular_axis_projection(Nr, Nz, m) if axis_method == "coupled_m1" else None
+        if self.axis_projection is not None:
+            q = self.axis_projection
+            self.A_cpu = (q.conj().T@self.A_cpu@q).tocsr()
+            print(f"[axis] coupled m={m} Galerkin closure; independent unknowns={self.A_cpu.shape[0]}", flush=True)
         if self.use_gpu:
             import cupyx.scipy.sparse as cpsp
             self.A = cpsp.csr_matrix(self.A_cpu)
@@ -420,6 +447,8 @@ class HeliconSolver:
         b = -1j * self.omega * mu_0 * J
         if self.pec_rows.size:
             b[self.pec_rows] = 0.0
+        if self.axis_projection is not None:
+            b = self.axis_projection.conj().T@b
         tol = float(self.cfg["solver"].get("tol", 1e-6))
         maxit = int(self.cfg["solver"].get("max_iter", 2000))
         method = self.cfg["solver"].get("method", "auto").lower()
@@ -463,6 +492,7 @@ class HeliconSolver:
         residual = np.linalg.norm(self.A_cpu @ x - b) / max(denom, np.finfo(float).tiny)
         self.solver_info = int(info)
         self.relative_residual = float(residual)
+        self.residual_equation_space = "axis_constrained_Galerkin" if self.axis_projection is not None else "full_collocated"
         self.converged = (info == 0 and np.isfinite(residual) and residual <= max(10 * tol, 1e-7))
         print(f"[solver] info={info}, relative residual={residual:.3e}")
         if not self.converged:
@@ -473,6 +503,8 @@ class HeliconSolver:
             )
 
         N = self.Nr * self.Nz
+        if self.axis_projection is not None:
+            x = self.axis_projection@x
         self.Er = x[0:N].reshape((self.Nr, self.Nz))
         self.Ephi = x[N:2 * N].reshape((self.Nr, self.Nz))
         self.Ez = x[2 * N:3 * N].reshape((self.Nr, self.Nz))
@@ -545,7 +577,18 @@ class HeliconSolver:
         sr = pml.scale_r()
         m = int(self.cfg["wave"].get("m_mode", 0))
 
-        C0_plus, C0_minus, C1 = radial_curl_polynomial(r, dr, sr, m)
+        formulation = str(self.cfg.get("boundary", {}).get("pml_formulation", "legacy_stretched"))
+        tensor_pml = formulation == "tensor"
+        C0_plus, C0_minus, C1 = radial_curl_polynomial(r, dr, sr if formulation == "legacy_stretched" else np.ones(Nr), m)
+        radial_pml = PML(Nr, 3, pml_r, 0, float(grid["pml_sigma_max"]), dr, self.dz)
+        if tensor_pml:
+            eps_factors, mu_inverse = radial_pml.tensor_factors(r)
+            eps_factors = tuple(tuple(value[:, 0] for value in line) for line in eps_factors)
+            mu_inverse = tuple(value[:, 0] for value in mu_inverse)
+        else:
+            eps_factors = tuple(tuple(np.ones(Nr) for _ in range(3)) for _ in range(3))
+            mu_inverse = tuple(np.ones(Nr, complex) for _ in range(3))
+        Mu_inverse = sparse.diags(np.concatenate(mu_inverse), format="csr")
         z_ref = float(self.cfg.get("solver", {}).get("dispersion_z_m", self.L / 2))
         jr = int(np.argmin(np.abs(self.z - z_ref)))
         n_profile = np.interp(r, self.r, self.background.n_e[:, jr])
@@ -564,14 +607,18 @@ class HeliconSolver:
             physical = tuple(tuple(np.where(material, material_epsilon if i == j else 0.0, physical[i][j])
                             for j in range(3)) for i in range(3))
         loss = float(self.cfg["solver"].get("artificial_loss", 0.0))
+        radial_loss = np.zeros(Nr)
+        if formulation == "passive_absorber":
+            radial_loss = radial_pml.passive_electric_loss(
+                self.omega, self.cfg.get("boundary", {}).get("absorber_conductivity_S_m"))[:, 0]
         Eps = sparse.bmat([
-            [sparse.diags(physical[i][j] - (1j * loss if i == j else 0), format="csr")
+            [sparse.diags((physical[i][j] - (1j * (loss+radial_loss) if i == j else 0))*eps_factors[i][j], format="csr")
              for j in range(3)] for i in range(3)
         ], format="csr")
 
-        A0 = C0_minus @ C0_plus - self.k0**2 * Eps
-        A1 = C0_minus @ C1 + C1 @ C0_plus
-        A2 = C1 @ C1
+        A0 = C0_minus @ Mu_inverse @ C0_plus - self.k0**2 * Eps
+        A1 = C0_minus @ Mu_inverse @ C1 + C1 @ Mu_inverse @ C0_plus
+        A2 = C1 @ Mu_inverse @ C1
         if self.cfg.get("boundary", {}).get("pec_pml_termination", True):
             rows = [Nr + Nr - 1, 2 * Nr + Nr - 1]
             matrices = [A0.tolil(), A1.tolil(), A2.tolil()]
@@ -582,7 +629,11 @@ class HeliconSolver:
                 matrices[0].rows[index] = [index]
                 matrices[0].data[index] = [1.0 + 0j]
             A0, A1, A2 = (matrix.tocsr() for matrix in matrices)
-        n = 3 * Nr
+        axis_q = regular_axis_projection(Nr, 1, m) if self.cfg.get("solver", {}).get("axis_regularization") == "coupled_m1" else None
+        if axis_q is not None:
+            adj = axis_q.conj().T
+            A0, A1, A2 = ((adj@a@axis_q).tocsr() for a in (A0, A1, A2))
+        n = A0.shape[0]
         O = sparse.csr_matrix((n, n), dtype=complex)
         I_n = sparse.eye(n, format="csr", dtype=complex)
         left = sparse.bmat([[O, I_n], [-A0, -A1]], format="csr").toarray()
@@ -628,6 +679,12 @@ class HeliconSolver:
                 continue
 
             e = np.asarray(vecs[:n, idx], dtype=complex)
+            terms = (A0@e, kval*(A1@e), kval**2*(A2@e))
+            qep_residual = float(np.linalg.norm(sum(terms))/max(sum(np.linalg.norm(t) for t in terms), 1e-300))
+            if not np.isfinite(qep_residual) or qep_residual > float(self.cfg.get("solver", {}).get("eigenmode_max_qep_residual", 1e-7)):
+                continue
+            if axis_q is not None:
+                e = axis_q@e
             oscillation = radial_grid_oscillation((e[:Nr], e[Nr:2 * Nr], e[2 * Nr:]), pml_r)
             resolved = oscillation <= float(self.cfg.get("solver", {}).get("max_radial_grid_oscillation", 0.22))
             norm = float(np.max(np.abs(e)))
@@ -642,11 +699,15 @@ class HeliconSolver:
                 "damping_ratio": float(damping_ratio),
                 "radial_grid_oscillation": oscillation,
                 "radial_grid_resolved": bool(resolved),
+                "qep_relative_residual": qep_residual,
+                "pml_formulation": formulation,
+                "axis_regularization": "coupled_m1" if axis_q is not None else "legacy",
+                "qep_residual_equation_space": "axis_constrained_Galerkin" if axis_q is not None else "full_collocated",
             })
         selected.sort(key=lambda mode: (mode["kz"].real, mode["kz"].imag))
         if not selected:
             raise RuntimeError(
-                "No forward radial eigenmodes passed the spectral bounds. "
+                "No forward radial eigenmodes passed the spectral bounds and QEP residual check. "
                 "Examine the mode family, radial mesh and boundary conditions."
             )
         self.dispersion_modes = selected
@@ -693,10 +754,14 @@ class HeliconSolver:
         return B_r, B_phi, B_z
 
     def compute_poynting(self):
-        B_r, B_phi, B_z = self.compute_magnetic_field()
-        radial = 0.5 / mu_0 * np.real(self.Ephi * np.conj(B_z) - self.Ez * np.conj(B_phi))
-        axial = 0.5 / mu_0 * np.real(self.Er * np.conj(B_phi) - self.Ephi * np.conj(B_r))
+        H_r, H_phi, H_z = self.compute_magnetic_intensity()
+        radial = 0.5 * np.real(self.Ephi * np.conj(H_z) - self.Ez * np.conj(H_phi))
+        axial = 0.5 * np.real(self.Er * np.conj(H_phi) - self.Ephi * np.conj(H_r))
         return radial, axial
+
+    def compute_magnetic_intensity(self):
+        magnetic = self.compute_magnetic_field()
+        return tuple(b*metric/mu_0 for b, metric in zip(magnetic, self.mu_inverse))
 
     def physical_domain_mask(self, extra_radial_cells=0, extra_axial_cells=0):
         return physical_mask(self.cfg, self.r, self.z, self.dr, self.dz,
@@ -708,6 +773,11 @@ class HeliconSolver:
     def energy_budget(self):
         from energy import energy_budget
         return energy_budget(self)
+
+    def check_boundary_passivity(self, report):
+        if self.cfg.get("solver", {}).get("require_passive_boundary", False) and not report["boundary_passivity_passed"]:
+            raise RuntimeError("Absorbing boundary failed the net operator-work passivity check; "
+                               "fields and dispersion must not be accepted as a physical result")
 
     def compute_poynting_z(self, physical_only=False):
         axial = self.compute_poynting()[1]

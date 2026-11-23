@@ -39,8 +39,9 @@ def audit_axis(nr=40, nz=16, radius_m=0.035, length_m=0.608):
         "interpretation": (
             "The unstretched pair is weighted-adjoint. The dual curl does not reproduce the "
             "pointwise curl of constant smooth fields at the first radial cell under the current "
-            "collocated interpretation. A compatible axis/staggering reformulation needs its own "
-            "convergence benchmark; changing one boundary row would destroy the adjoint identity."
+            "collocated interpretation. This legacy pointwise audit alone does not validate or "
+            "invalidate the new coupled Galerkin closure. Run operator_benchmark.py for independent "
+            "waveguide convergence tests; changing one boundary row would destroy the adjoint identity."
         ),
         "axis_discretization_validated": False,
     }
