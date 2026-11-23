@@ -4,6 +4,29 @@ import numpy as np
 from scipy import sparse
 
 
+def regular_axis_projection(nr, nz, m):
+    """Orthonormal Galerkin basis enforcing Er+i*m*Ephi=0 in the first cell.
+
+    For |m|=1 the omitted helicity is O(r**2) in a smooth Cartesian vector
+    field. This is a leading-order axis closure, not a full staggered scheme.
+    Both components have the same r quadrature weight, so the projection
+    preserves the weighted-adjoint energy identity.
+    """
+    if abs(int(m)) != 1:
+        return None
+    n = int(nr)*int(nz)
+    full = np.arange(3*n)
+    keep = ~((full >= n) & (full < n+nz))
+    retained = full[keep]
+    columns = np.arange(len(retained))
+    values = np.ones(len(retained), complex)
+    values[:nz] = 1/np.sqrt(2)
+    return sparse.csr_matrix((np.concatenate((values, np.full(nz, 1j*m/np.sqrt(2)))),
+                              (np.concatenate((retained, n+np.arange(nz))),
+                               np.concatenate((columns, np.arange(nz))))),
+                             shape=(3*n, 3*n-nz))
+
+
 def forward_difference(n: int, h: float) -> sparse.csr_matrix:
     if n < 3 or h <= 0:
         raise ValueError("Invalid difference grid")

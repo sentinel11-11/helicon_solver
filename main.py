@@ -42,6 +42,8 @@ def save_fields(solver, target):
                   dielectric_loss=solver.compute_material_absorption())
     arrays["physical_mask"] = solver.physical_domain_mask()
     arrays["non_pml_mask"] = solver.non_pml_domain_mask()
+    hr, hp, hz = solver.compute_magnetic_intensity()
+    arrays.update(H_r=hr, H_phi=hp, H_z=hz, absorber_epsilon_loss=solver.absorber_epsilon_loss)
     if solver.cfg.get("output", {}).get("save_fields_npz", True):
         np.savez_compressed(path / "fields.npz", **arrays)
     if solver.cfg.get("output", {}).get("save_hdf5", False):
@@ -69,6 +71,7 @@ def main(config_path="config.yaml", *, dry_run=False):
     solver.solve()
     power_budget = solver.energy_budget()
     (output / "energy_budget.json").write_text(json.dumps(power_budget, indent=2, allow_nan=False), encoding="utf8")
+    solver.check_boundary_passivity(power_budget)
     diagnostics = Diagnostics(solver, str(output), config["output"].get("dpi", 160))
     diagnostics.plot_field_map()
     diagnostics.plot_radial_profiles()
@@ -102,6 +105,7 @@ def main(config_path="config.yaml", *, dry_run=False):
         "m": int(config["wave"].get("m_mode", 0)),
         "field_phase_convention": "exp(i*m*phi - i*kz*z + i*omega*t)",
         "relative_residual": solver.relative_residual,
+        "residual_equation_space": solver.residual_equation_space,
         "grid": [solver.Nr, solver.Nz],
         "physical_absorbed_power_W": power_budget["physical"]["absorbed_power_W"],
         "power_budget": power_budget,

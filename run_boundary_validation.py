@@ -69,6 +69,7 @@ def main(config_path, frequency_mhz=10.0, after_m=0.152, before_m=0.0,
             solver.solve()
             report = solver.energy_budget()
             _write_json(target/"energy_budget.json", report)
+            solver.check_boundary_passivity(report)
             save_fields(solver, target)
             diag = Diagnostics(solver, str(target), variant["output"].get("dpi", 160))
             diag.plot_absorbed_power()

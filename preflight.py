@@ -31,6 +31,9 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
     g = config["grid"]
     w = config["wave"]
     s = config["solver"]
+    axis_method = str(s.get("axis_regularization", "legacy"))
+    if axis_method not in ("legacy", "coupled_m1"):
+        raise ValueError("solver.axis_regularization must be legacy or coupled_m1")
     ant = config["antenna"]
     nr, nz = int(g["Nr"]), int(g["Nz"])
     if nr < 8 or nz < 16:
@@ -39,6 +42,13 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
     length = float(p["length"])
     extent = float(g["radial_extent"])
     z_min, z_max = axial_domain(config)
+    pml_formulation = str(config.get("boundary", {}).get("pml_formulation", "legacy_stretched"))
+    if pml_formulation not in ("legacy_stretched", "tensor", "passive_absorber"):
+        raise ValueError("Unknown boundary.pml_formulation")
+    if pml_formulation == "passive_absorber":
+        conductivity = float(config["boundary"].get("absorber_conductivity_S_m", 0.0))
+        if not np.isfinite(conductivity) or conductivity <= 0:
+            raise ValueError("Passive absorber requires positive boundary.absorber_conductivity_S_m")
     if not (0 < a < extent and length > 0):
         raise ValueError("Expected 0 < plasma.radius < grid.radial_extent and plasma.length > 0")
     radial_pml = int(g["pml_r"])
@@ -58,6 +68,9 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
         raise ValueError(f"Unsupported solver.method: {method}")
     if not np.isfinite(float(s.get("tol", 1e-6))) or float(s.get("tol", 1e-6)) <= 0:
         raise ValueError("solver.tol must be finite and positive")
+    qep_tolerance = float(s.get("eigenmode_max_qep_residual", 1e-7))
+    if not np.isfinite(qep_tolerance) or qep_tolerance <= 0:
+        raise ValueError("solver.eigenmode_max_qep_residual must be finite and positive")
     if float(p.get("n_e_peak", 0.0)) <= 0 or float(p.get("ion_mass", 0.0)) <= 0:
         raise ValueError("Electron density and ion mass must be positive")
     antenna_length = float(ant.get("active_length_m", ant.get("length", 0.0)))
@@ -100,6 +113,12 @@ def validate_project_config(config: dict[str, Any]) -> PreflightReport:
 
     unknowns = 3 * nr * nz
     warnings = []
+    if axis_method == "coupled_m1":
+        warnings.append("For m=+/-1, coupled first-cell axis closure removes Nz unknowns; residual is checked in the constrained Galerkin equations")
+    if pml_formulation == "tensor":
+        warnings.append("Tensor PML transforms both full dielectric tensor and permeability; boundary/axis convergence still requires validation")
+    if pml_formulation == "passive_absorber":
+        warnings.append("Passive conductivity absorber is not perfectly matched; thickness/distance convergence is required")
     if z_min < 0 or z_max > length:
         warnings.append(f"Physical z=[0, {length:g}] m; computational z=[{z_min:g}, {z_max:g}] m; "
                         f"dz={(z_max-z_min)/nz:g} m; buffers continue edge constitutive parameters artificially")

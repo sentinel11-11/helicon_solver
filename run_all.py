@@ -37,6 +37,9 @@ COLUMNS = (
     "elapsed_s", "radial_grid_oscillation", "radial_grid_resolved", "status",
     "physical_absorbed_power_W", "source_power_W", "net_outward_power_W",
     "surface_power_balance_defect", "boundary_net_inflow", "power_warning_count",
+    "eigenmode_qep_relative_residual", "boundary_passivity_passed", "boundary_formulation",
+    "absorbing_layer_work_W",
+    "residual_equation_space", "axis_regularization",
 )
 
 SOURCE_FILES = (
@@ -101,6 +104,10 @@ def _save_mode(path: Path, mode: dict[str, Any]) -> None:
         damping_ratio=np.array(mode["damping_ratio"], dtype=float),
         radial_grid_oscillation=np.array(mode.get("radial_grid_oscillation", float("nan")), dtype=float),
         radial_grid_resolved=np.array(mode.get("radial_grid_resolved", False), dtype=bool),
+        qep_relative_residual=np.array(mode.get("qep_relative_residual", float("nan"))),
+        pml_formulation=np.array(mode.get("pml_formulation", "unknown")),
+        axis_regularization=np.array(mode.get("axis_regularization", "legacy")),
+        qep_residual_equation_space=np.array(mode.get("qep_residual_equation_space", "unknown")),
     )
 
 
@@ -115,6 +122,9 @@ def _load_mode(path: Path) -> dict[str, Any]:
             "damping_ratio": float(data["damping_ratio"]),
             "radial_grid_oscillation": float(data["radial_grid_oscillation"]) if "radial_grid_oscillation" in data else float("nan"),
             "radial_grid_resolved": bool(data["radial_grid_resolved"]) if "radial_grid_resolved" in data else False,
+            "qep_relative_residual": float(data["qep_relative_residual"]) if "qep_relative_residual" in data else float("nan"),
+            "pml_formulation": str(data["pml_formulation"].item()) if "pml_formulation" in data else "unknown",
+            "axis_regularization": str(data["axis_regularization"].item()) if "axis_regularization" in data else "legacy",
         }
 
 
@@ -197,6 +207,12 @@ def _result_row(solver: HeliconSolver, selected: dict[str, Any], f: float, m: in
         "surface_power_balance_defect": solver.power_budget["physical"]["relative_balance_defect"],
         "boundary_net_inflow": solver.power_budget["non_pml"]["net_boundary_inflow"],
         "power_warning_count": len(solver.power_budget["warnings"]),
+        "eigenmode_qep_relative_residual": _finite(selected.get("qep_relative_residual", float("nan"))),
+        "boundary_passivity_passed": solver.power_budget["boundary_passivity_passed"],
+        "boundary_formulation": solver.pml_formulation,
+        "absorbing_layer_work_W": solver.power_budget["full_grid_operator_work"]["combined_absorbing_layer_work_W"],
+        "residual_equation_space": solver.residual_equation_space,
+        "axis_regularization": selected.get("axis_regularization", "legacy"),
     }
 
 
@@ -293,6 +309,7 @@ def main(
                   f"net outward={power_budget['physical']['net_outward_W']:.3e} W", flush=True)
             for warning in power_budget["warnings"]:
                 print(f"[power warning] {warning}", flush=True)
+            solver.check_boundary_passivity(power_budget)
             if save_fields_enabled:
                 save_fields(solver, case_dir)
             solver.compute_wave_structure()

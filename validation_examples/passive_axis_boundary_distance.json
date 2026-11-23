@@ -1,0 +1,80 @@
+{
+  "linear_residual": 6.701959985014105e-10,
+  "grid": [
+    200,
+    1000
+  ],
+  "relative_E_change": 0.1360109385763875,
+  "fixed_window_m": [
+    0.27,
+    0.55
+  ],
+  "power": {
+    "phase_convention": "exp(+i*omega*t + i*m*phi)",
+    "azimuthal_normalization": "2*pi for one complex Fourier harmonic with peak phasor amplitude",
+    "surface_method": "collocated Poynting flux, arithmetic interpolation to cell faces",
+    "pml_formulation": "passive_absorber",
+    "axis_regularization": "coupled_m1",
+    "linear_residual_equation_space": "axis_constrained_Galerkin",
+    "non_pml_key_meaning": "computational control volume outside all absorbing layers, including optional buffer",
+    "boundary_passivity_passed": true,
+    "passivity_check_power_scale_W": 7.93215647445596e-09,
+    "passivity_check_algebraic_balance_reliable": true,
+    "physical": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.022800000000000004,
+      "z_right_m": 0.6080000000000001,
+      "source_power_W": 7.93215647445596e-09,
+      "absorbed_power_W": 7.563376857118936e-09,
+      "artificial_absorbed_power_W": 0.0,
+      "left_face_plus_z_W": -2.450867855657716e-10,
+      "right_face_plus_z_W": 1.2340073269614193e-10,
+      "radial_outward_W": 9.482226052801829e-13,
+      "net_outward_W": 3.6943574086719373e-10,
+      "balance_defect_W": -6.561235301706008e-13,
+      "relative_balance_defect": 8.271691718179353e-05,
+      "net_boundary_inflow": false,
+      "source_small_relative_to_power_terms": false
+    },
+    "non_pml": {
+      "r_outer_m": 0.03325,
+      "z_left_m": 0.022800000000000004,
+      "z_right_m": 0.7372000000000001,
+      "source_power_W": 7.93215647445596e-09,
+      "absorbed_power_W": 7.664429897053012e-09,
+      "artificial_absorbed_power_W": 0.0,
+      "left_face_plus_z_W": -2.450867855657716e-10,
+      "right_face_plus_z_W": 2.4783184616852996e-12,
+      "radial_outward_W": 1.0436162376681772e-12,
+      "net_outward_W": 2.4860872026512505e-10,
+      "balance_defect_W": 1.911785713782264e-11,
+      "relative_balance_defect": 0.002410171458340258,
+      "net_boundary_inflow": false,
+      "source_small_relative_to_power_terms": false
+    },
+    "full_grid_operator_work": {
+      "source_power_W": 7.93215647445596e-09,
+      "constitutive_quadratic_including_pml_W": 7.765114782350408e-09,
+      "artificial_absorbed_W": 0.0,
+      "effective_electric_work_including_pml_W": 7.932156474939584e-09,
+      "layer_electric_modification_work_W": 1.6704169258917557e-10,
+      "curl_stretch_exchange_W": 5.095703860664699e-23,
+      "balance_defect_W": -4.836753370575351e-19,
+      "relative_balance_defect": 6.097652493185582e-11,
+      "includes_pml": true,
+      "is_physical_absorption": false,
+      "combined_absorbing_layer_work_W": 2.677265778866243e-10
+    },
+    "negative_plasma_absorption_fraction": 0.0,
+    "warnings": [],
+    "physical_model_validated": false
+  },
+  "physical_model_validated": false,
+  "baseline_grid": [
+    200,
+    800
+  ],
+  "buffer_after_m": 0.152,
+  "same_dr_dz": true,
+  "baseline_config": "config_passive_10MHz_200x800.yaml"
+}

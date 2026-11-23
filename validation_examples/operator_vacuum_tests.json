@@ -1,0 +1,220 @@
+{
+  "date": "2026-11-23",
+  "purpose": "Independent analytical vacuum guide benchmark, not plasma validation",
+  "tests": [
+    {
+      "grid": [
+        24,
+        240
+      ],
+      "m": 0,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "legacy_stretched",
+      "analytic_kz_rad_m": 105.31984973747797,
+      "fitted_kz_rad_m": 105.349102929722,
+      "relative_kz_error": 0.00027775573471614857,
+      "backward_to_forward_amplitude": 0.07824114371727856,
+      "two_direction_relative_fit_error": 2.779169313068196e-06,
+      "linear_residual": 4.527551971560212e-14,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        48,
+        480
+      ],
+      "m": 0,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "legacy_stretched",
+      "analytic_kz_rad_m": 105.31984973747797,
+      "fitted_kz_rad_m": 105.26983105389759,
+      "relative_kz_error": 0.0004749217142357627,
+      "backward_to_forward_amplitude": 0.07544389644587551,
+      "two_direction_relative_fit_error": 1.191825735471447e-06,
+      "linear_residual": 1.7692607187550097e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        24,
+        240
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "legacy_stretched",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 60.76476213423906,
+      "relative_kz_error": 0.017871548345890165,
+      "backward_to_forward_amplitude": 0.23194086685898618,
+      "two_direction_relative_fit_error": 1.748837414447786e-09,
+      "linear_residual": 2.0198689638045344e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        48,
+        480
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "legacy_stretched",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 61.28515744428756,
+      "relative_kz_error": 0.009460505133429137,
+      "backward_to_forward_amplitude": 0.22484785767935306,
+      "two_direction_relative_fit_error": 8.940299103581392e-10,
+      "linear_residual": 7.281756172338711e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        24,
+        240
+      ],
+      "m": 0,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 105.31984973747797,
+      "fitted_kz_rad_m": 105.34910178532819,
+      "relative_kz_error": 0.00027774486882705703,
+      "backward_to_forward_amplitude": 0.005234030744118927,
+      "two_direction_relative_fit_error": 2.72063922284268e-06,
+      "linear_residual": 4.7408267079806735e-14,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        48,
+        480
+      ],
+      "m": 0,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 105.31984973747797,
+      "fitted_kz_rad_m": 105.26983021614818,
+      "relative_kz_error": 0.0004749296685711825,
+      "backward_to_forward_amplitude": 0.002510424165336574,
+      "two_direction_relative_fit_error": 1.1872039929037438e-06,
+      "linear_residual": 1.7936359574875249e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        24,
+        240
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 60.76476224701547,
+      "relative_kz_error": 0.017871546523108024,
+      "backward_to_forward_amplitude": 0.011061995960595799,
+      "two_direction_relative_fit_error": 3.789928000608576e-09,
+      "linear_residual": 2.3373600233331337e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        48,
+        480
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 61.28515785226007,
+      "relative_kz_error": 0.009460498539452746,
+      "backward_to_forward_amplitude": 0.005371299714113494,
+      "two_direction_relative_fit_error": 1.163420702597724e-08,
+      "linear_residual": 8.108774121574728e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        72,
+        720
+      ],
+      "m": 0,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 105.31984973747797,
+      "fitted_kz_rad_m": 105.27231932836513,
+      "relative_kz_error": 0.0004512958310452683,
+      "backward_to_forward_amplitude": 0.00169724254090524,
+      "two_direction_relative_fit_error": 7.789089631815616e-07,
+      "linear_residual": 4.701277806564503e-13,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        72,
+        720
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 61.47300770560976,
+      "relative_kz_error": 0.006424319689509938,
+      "backward_to_forward_amplitude": 0.0036001325314646312,
+      "two_direction_relative_fit_error": 1.0231479375064382e-08,
+      "linear_residual": 2.1177908698137037e-12,
+      "axis_regularization": "legacy"
+    },
+    {
+      "grid": [
+        24,
+        240
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 60.78081481059273,
+      "relative_kz_error": 0.017612092213447665,
+      "backward_to_forward_amplitude": 0.0110598085652948,
+      "two_direction_relative_fit_error": 2.0780332156270738e-07,
+      "linear_residual": 2.3378138703720505e-13,
+      "axis_regularization": "coupled_m1",
+      "radial_Ez_shape_relative_error": 0.051679309696093564,
+      "first_cell_transverse_helicity_ratio": 0.0
+    },
+    {
+      "grid": [
+        48,
+        480
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 61.28905985465625,
+      "relative_kz_error": 0.009397431270905789,
+      "backward_to_forward_amplitude": 0.005371032807255951,
+      "two_direction_relative_fit_error": 1.688368431485514e-08,
+      "linear_residual": 9.705583928336329e-13,
+      "axis_regularization": "coupled_m1",
+      "radial_Ez_shape_relative_error": 0.02553027522888367,
+      "first_cell_transverse_helicity_ratio": 0.0
+    },
+    {
+      "grid": [
+        72,
+        720
+      ],
+      "m": 1,
+      "frequency_Hz": 6000000000.0,
+      "pml_formulation": "tensor",
+      "analytic_kz_rad_m": 61.87048347077053,
+      "fitted_kz_rad_m": 61.4747191599759,
+      "relative_kz_error": 0.0063966578018030745,
+      "backward_to_forward_amplitude": 0.0036000546167668937,
+      "two_direction_relative_fit_error": 1.044325594173335e-08,
+      "linear_residual": 3.5705852357973425e-12,
+      "axis_regularization": "coupled_m1",
+      "radial_Ez_shape_relative_error": 0.016951620173543215,
+      "first_cell_transverse_helicity_ratio": 0.0
+    }
+  ]
+}

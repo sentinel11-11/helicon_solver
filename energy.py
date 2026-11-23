@@ -73,17 +73,31 @@ def energy_budget(solver):
 
     # Original, unmodified curl-curl operator, before PEC row replacement.
     x = fields.reshape(-1)
-    work = np.vdot(x, np.tile(np.repeat(2*np.pi*solver.r*solver.dr*solver.dz, solver.Nz), 3)
-                   * (solver.C_dual @ (solver.C @ x)))
+    metric = np.tile(np.repeat(2*np.pi*solver.r*solver.dr*solver.dz, solver.Nz), 3)
+    work = np.vdot(x, metric * (solver.C_dual @ (solver.Mu_inverse @ (solver.C @ x))))
     operator_exchange = float(np.imag(work)/(2*solver.omega*mu_0))
     volume = 2*np.pi*solver.r[:, None]*solver.dr*solver.dz
-    total_absorbed = float(np.sum((q+artificial)*volume))
+    effective_density = -0.5*solver.omega*epsilon_0*np.imag(
+        np.sum(np.conj(fields)*(solver.Eps@x).reshape(fields.shape), axis=0))
+    total_absorbed = float(np.sum(effective_density*volume))
     total_source = float(np.sum(source*volume))
     global_defect = total_source-total_absorbed-operator_exchange
     global_scale = max(abs(total_source), abs(total_absorbed), abs(operator_exchange), 1e-300)
+    layer_work = operator_exchange+float(np.sum(
+        np.where(~solver.non_pml_domain_mask(), effective_density, 0)*volume))
+    # A cancellation of enormous artificial PML terms must not hide an inward
+    # layer contribution on the much smaller physical-power scale.
+    physical_scale = max(abs(total_source), abs(non_pml["absorbed_power_W"]),
+                         abs(non_pml["artificial_absorbed_power_W"]), abs(layer_work), 1e-300)
+    work_reliable = bool(abs(global_defect) <= 1e-4*physical_scale)
+    passive_boundary = bool(layer_work >= -1e-6*physical_scale and work_reliable)
     warnings = []
+    if layer_work < -1e-6*physical_scale:
+        warnings.append("Combined absorbing-layer operator work is negative: boundary passivity check failed")
+    if not work_reliable:
+        warnings.append("Operator-work cancellation error is too large on the physical-power scale; passivity is unresolved")
     if non_pml["net_boundary_inflow"]:
-        warnings.append("Net power enters the non-PML box through its boundary; audit termination/PML and flux reconstruction")
+        warnings.append("Net power enters the box outside absorbing layers; audit termination and flux reconstruction")
     if physical["relative_balance_defect"] > 0.1:
         warnings.append("Interpolated physical-domain surface balance defect exceeds 10%; this is not an exact discrete conservation test")
     if operator_exchange < -0.01*global_scale:
@@ -92,17 +106,27 @@ def energy_budget(solver):
         "phase_convention": "exp(+i*omega*t + i*m*phi)",
         "azimuthal_normalization": "2*pi for one complex Fourier harmonic with peak phasor amplitude",
         "surface_method": "collocated Poynting flux, arithmetic interpolation to cell faces",
+        "pml_formulation": solver.pml_formulation,
+        "axis_regularization": solver.cfg.get("solver", {}).get("axis_regularization", "legacy"),
+        "linear_residual_equation_space": getattr(solver, "residual_equation_space", "not_recorded"),
+        "non_pml_key_meaning": "computational control volume outside all absorbing layers, including optional buffer",
+        "boundary_passivity_passed": passive_boundary,
+        "passivity_check_power_scale_W": physical_scale,
+        "passivity_check_algebraic_balance_reliable": work_reliable,
         "physical": physical,
         "non_pml": non_pml,
         "full_grid_operator_work": {
             "source_power_W": total_source,
             "constitutive_quadratic_including_pml_W": float(np.sum(q*volume)),
             "artificial_absorbed_W": float(np.sum(artificial*volume)),
+            "effective_electric_work_including_pml_W": total_absorbed,
+            "layer_electric_modification_work_W": total_absorbed-float(np.sum((q+artificial)*volume)),
             "curl_stretch_exchange_W": operator_exchange,
             "balance_defect_W": global_defect,
             "relative_balance_defect": float(abs(global_defect)/global_scale),
             "includes_pml": True,
             "is_physical_absorption": False,
+            "combined_absorbing_layer_work_W": layer_work,
         },
         "negative_plasma_absorption_fraction": solver.negative_absorption_fraction,
         "warnings": warnings,
